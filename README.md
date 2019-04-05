@@ -33,7 +33,7 @@ module.exports = {
 };
 ```
 
-- `repo` (required) - The user/name of the repo.
+- `repo` (required) - The username/repo-name.
 - `path` (required) - The glob (or array of globs) of files to include in the report.
 - `branch` (optional, default: 'master') - The branch to check against.
 - `findRenamed(path, newPaths)` (optional) - See below
