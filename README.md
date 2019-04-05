@@ -82,3 +82,7 @@ Flags:
 `repo` and `path` are the same as their equivalents in the config file.
 
 It's recommended to use the config file rather than use args. If both are used, the command line args take priority over values in the config file.
+
+## Results
+
+Results appear at the end of your Travis log. They're folded away by default, so you'll need to click on the sizereport line to expand it.
