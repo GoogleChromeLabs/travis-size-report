@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import path from 'path';
 import minimist from 'minimist';
 import sizeReport from '.';
