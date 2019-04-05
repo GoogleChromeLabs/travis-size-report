@@ -127,7 +127,7 @@ async function getChanges(
 
   // Figure out renamed files.
   if (findRenamed) {
-    const originalDeletedItems = deletedItems;
+    const originalDeletedItems = deletedItems.slice();
     const newPaths = newItems.map(i => i.path);
 
     for (const deletedItem of originalDeletedItems) {

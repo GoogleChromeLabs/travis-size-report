@@ -10,9 +10,6 @@ const _1 = __importDefault(require("."));
 const argv = minimist_1.default(process.argv.slice(2), {
     string: ['branch'],
     alias: { c: 'config' },
-    default: {
-        branch: 'master',
-    },
 });
 const branch = argv.branch;
 const configFile = argv.config;

@@ -6,9 +6,6 @@ import sizeReport from '.';
 const argv = minimist(process.argv.slice(2), {
   string: ['branch'],
   alias: { c: 'config' },
-  default: {
-    branch: 'master',
-  },
 });
 
 const branch = argv.branch as string;
