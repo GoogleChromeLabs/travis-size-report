@@ -9,8 +9,7 @@
   "scripts": {
     "clean": "rm -rf build",
     "build": "npm run clean && tsc",
-    "watch": "npm run clean && tsc --watch",
-    "sizereport": "sizereport --config"
+    "watch": "npm run clean && tsc --watch"
   },
   "husky": {
     "hooks": {
