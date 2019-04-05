@@ -1,6 +1,6 @@
 {
   "name": "travis-size-report",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Compare files from one build to another",
   "main": "index.js",
   "bin": {
