@@ -3,7 +3,7 @@ import minimist from 'minimist';
 import sizeReport from '.';
 
 const argv = minimist(process.argv.slice(2), {
-  string: ['branch', 'config'],
+  string: ['branch'],
   alias: { c: 'config' },
   default: {
     branch: 'master',
