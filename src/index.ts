@@ -102,6 +102,7 @@ async function getChanges(
 ): Promise<BuildChanges> {
   const deletedItems: FileData[] = [];
   const changedItems = new Map<FileData, FileData>();
+  const matchedNewEntries = new Set<FileData>();
 
   for (const oldEntry of previousBuildInfo) {
     const newEntry = buildInfo.find(entry => entry.path === oldEntry.path);
@@ -109,15 +110,16 @@ async function getChanges(
       deletedItems.push(oldEntry);
       continue;
     }
-    changedItems.set(oldEntry, newEntry);
+
+    matchedNewEntries.add(newEntry);
+    if (oldEntry.gzipSize !== newEntry.gzipSize) changedItems.set(oldEntry, newEntry);
   }
 
-  const mappedNewEntries = new Set(changedItems.values());
   const newItems: FileData[] = [];
 
   // Look for entries that are only in the new build.
   for (const newEntry of buildInfo) {
-    if (mappedNewEntries.has(newEntry)) continue;
+    if (matchedNewEntries.has(newEntry)) continue;
     newItems.push(newEntry);
   }
 
@@ -153,6 +155,14 @@ function outputChanges(changes: BuildChanges) {
   const g = alwaysChalk.green;
   const r = alwaysChalk.red;
 
+  if (
+    changes.newItems.length === 0 &&
+    changes.deletedItems.length === 0 &&
+    changes.changedItems.size === 0
+  ) {
+    console.log(`  No changes.`);
+  }
+
   for (const file of changes.newItems) {
     console.log(`  ${g('ADDED')}   ${file.path} - ${prettyBytes(file.gzipSize)}`);
   }
@@ -180,7 +190,7 @@ function outputChanges(changes: BuildChanges) {
         ')';
     }
 
-    console.log(`  ${y('CHANGED')} ${newFile.gzipSize} - ${size}`);
+    console.log(`  ${y('CHANGED')} ${newFile.path} - ${size}`);
 
     if (oldFile.path !== newFile.path) {
       console.log(`    Renamed from: ${oldFile.path}`);

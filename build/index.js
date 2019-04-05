@@ -71,19 +71,21 @@ async function getPreviousBuildInfo(user, repo, branch) {
 async function getChanges(previousBuildInfo, buildInfo, findRenamed) {
     const deletedItems = [];
     const changedItems = new Map();
+    const matchedNewEntries = new Set();
     for (const oldEntry of previousBuildInfo) {
         const newEntry = buildInfo.find(entry => entry.path === oldEntry.path);
         if (!newEntry) {
             deletedItems.push(oldEntry);
             continue;
         }
-        changedItems.set(oldEntry, newEntry);
+        matchedNewEntries.add(newEntry);
+        if (oldEntry.gzipSize !== newEntry.gzipSize)
+            changedItems.set(oldEntry, newEntry);
     }
-    const mappedNewEntries = new Set(changedItems.values());
     const newItems = [];
     // Look for entries that are only in the new build.
     for (const newEntry of buildInfo) {
-        if (mappedNewEntries.has(newEntry))
+        if (matchedNewEntries.has(newEntry))
             continue;
         newItems.push(newEntry);
     }
@@ -114,6 +116,11 @@ function outputChanges(changes) {
     const y = alwaysChalk.yellow;
     const g = alwaysChalk.green;
     const r = alwaysChalk.red;
+    if (changes.newItems.length === 0 &&
+        changes.deletedItems.length === 0 &&
+        changes.changedItems.size === 0) {
+        console.log(`  No changes.`);
+    }
     for (const file of changes.newItems) {
         console.log(`  ${g('ADDED')}   ${file.path} - ${pretty_bytes_1.default(file.gzipSize)}`);
     }
@@ -137,7 +144,7 @@ function outputChanges(changes) {
                     color(`${sizeDiff}, ${relativeDiff}x`) +
                     ')';
         }
-        console.log(`  ${y('CHANGED')} ${newFile.gzipSize} - ${size}`);
+        console.log(`  ${y('CHANGED')} ${newFile.path} - ${size}`);
         if (oldFile.path !== newFile.path) {
             console.log(`    Renamed from: ${oldFile.path}`);
         }
