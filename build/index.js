@@ -23,7 +23,7 @@ const buildSizePrefixRe = new RegExp(`^${escape_string_regexp_1.default(buildSiz
  */
 function pathsToInfoArray(paths) {
     return Promise.all(paths.map(async (path) => {
-        const gzipSizePromise = gzip_size_1.default(path);
+        const gzipSizePromise = gzip_size_1.default.file(path);
         const statSizePromise = statP(path).then(s => s.size);
         return {
             path,
@@ -79,8 +79,9 @@ async function getChanges(previousBuildInfo, buildInfo, findRenamed) {
             continue;
         }
         matchedNewEntries.add(newEntry);
-        if (oldEntry.gzipSize !== newEntry.gzipSize)
+        if (oldEntry.gzipSize !== newEntry.gzipSize) {
             changedItems.set(oldEntry, newEntry);
+        }
     }
     const newItems = [];
     // Look for entries that are only in the new build.

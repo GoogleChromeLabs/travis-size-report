@@ -29,7 +29,7 @@ const buildSizePrefixRe = new RegExp(`^${escapeRE(buildSizePrefix)}(.+)$`, 'm');
 function pathsToInfoArray(paths: string[]): Promise<FileData[]> {
   return Promise.all(
     paths.map(async path => {
-      const gzipSizePromise = gzipSize(path);
+      const gzipSizePromise = gzipSize.file(path);
       const statSizePromise = statP(path).then(s => s.size);
 
       return {
@@ -112,7 +112,9 @@ async function getChanges(
     }
 
     matchedNewEntries.add(newEntry);
-    if (oldEntry.gzipSize !== newEntry.gzipSize) changedItems.set(oldEntry, newEntry);
+    if (oldEntry.gzipSize !== newEntry.gzipSize) {
+      changedItems.set(oldEntry, newEntry);
+    }
   }
 
   const newItems: FileData[] = [];
