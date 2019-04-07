@@ -40,9 +40,9 @@ module.exports = {
 
 #### `findRenamed(path, newPaths)`
 
-By default, a renamed file will look like one file deleted and another created. By writing a `findRenamed` callback, you can tell travis-size-report that a file was renamed from thing to another.
+By default, a renamed file will look like one file deleted and another created. By writing a `findRenamed` callback, you can tell travis-size-report that a file was renamed.
 
-- `path` – A path that existed in the previous build, but doesn't exist in the new build.
+- `path` - A path that existed in the previous build, but doesn't exist in the new build.
 - `newPaths` - Paths that appear in the new build, but didn't appear in the previous build.
 
 Match up `path` to one of the `newPaths` by returning the matching `newPath`. Or return undefined if `path` was deleted rather than renamed.
@@ -76,7 +76,7 @@ sizereport [flags] repo path
 
 Flags:
 
-- `--config` (or `-c`) – Path to the config file. If no path is provided, `./sizereport.config.js` is the default.
+- `--config` (or `-c`) - Path to the config file. If no path is provided, `./sizereport.config.js` is the default.
 - `--branch` - Same as `branch` in the config file.
 
 `repo` and `path` are the same as their equivalents in the config file.
