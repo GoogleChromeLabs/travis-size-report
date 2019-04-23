@@ -234,7 +234,8 @@ export default async function sizeReport(
   const filePaths = [];
 
   for (const glob of files) {
-    filePaths.push(...(await globP(glob)));
+    const matches = await globP(glob, { nodir: true });
+    filePaths.push(...matches);
   }
 
   const uniqueFilePaths = [...new Set(filePaths)];
