@@ -339,7 +339,7 @@ function _makeSizeTextGetter() {
 
       const bytesGrouped = bytes.toLocaleString(_LOCALE, { useGrouping: true });
       let description = `${bytesGrouped} bytes`;
-      if (node.numAliases && node.numAliases > 1) {
+      if (node.numAliases > 1) {
         description += ` for 1 of ${node.numAliases} aliases`;
       }
 

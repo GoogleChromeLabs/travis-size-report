@@ -105,7 +105,7 @@ function createNode(options) {
     shortNameIndex,
     size = 0,
     flags = 0,
-    numAliases,
+    numAliases = 1,
     childStats = {},
   } = options;
   return {

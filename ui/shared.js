@@ -26,7 +26,7 @@
  * @prop {string} type Type of this node. If this node has children, the string
  * may have a second character to denote the most common child.
  * @prop {number} flags
- * @prop {number} [numAliases]
+ * @prop {number} numAliases
  * @prop {{[type: string]: TreeNodeChildStats}} childStats Stats about this
  * node's descendants, organized by symbol type.
  */
