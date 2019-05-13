@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // @ts-check
-'use strict';
 
 /**
  * @fileoverview
@@ -11,7 +10,16 @@
  * symbols as the user hovers or focuses on them.
  */
 
-const displayInfocard = (() => {
+import {
+  dom,
+  getIconStyle,
+  getIconTemplate,
+  getSizeContents,
+  setSizeClasses,
+  state,
+} from './state.js';
+
+export const displayInfocard = (() => {
   const _CANVAS_RADIUS = 40;
 
   const _FLAG_LABELS = new Map([
@@ -86,7 +94,7 @@ const displayInfocard = (() => {
           document.createTextNode(node.srcPath),
           document.createElement('br'),
           dom.textElement('span', 'Component: ', 'symbol-name-info'),
-          document.createTextNode(node.componet || '(No component)'),
+          document.createTextNode(node.component || '(No component)'),
         ]);
       } else {
         const path = node.idPath.slice(0, node.shortNameIndex);
@@ -164,7 +172,9 @@ const displayInfocard = (() => {
      * @param {TreeNode} node
      */
     updateInfocard(node) {
+      // @ts-ignore
       cancelAnimationFrame(Infocard._pendingFrame);
+      // @ts-ignore
       Infocard._pendingFrame = requestAnimationFrame(() => this._updateInfocard(node));
     }
   }

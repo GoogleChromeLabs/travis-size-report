@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // @ts-check
-'use strict';
 
 /**
  * @fileoverview
@@ -11,10 +10,10 @@
  */
 
 /** @type {HTMLFormElement} Form containing options and filters */
-const form = document.getElementById('options');
+export const form = document.querySelector('#options');
 
 /** Utilities for working with the DOM */
-const dom = {
+export const dom = {
   /**
    * Create a document fragment from the given nodes
    * @param {Iterable<Node>} nodes
@@ -110,8 +109,8 @@ function _initState() {
 
   // Update form inputs to reflect the state from URL.
   for (const element of Array.from(form.elements)) {
-    if (element.name) {
-      const input = /** @type {HTMLInputElement} */ (element);
+    const input = /** @type {HTMLInputElement} */ (element);
+    if (input.name) {
       const values = _filterParams.getAll(input.name);
       const [value] = values;
       if (value) {
@@ -134,6 +133,7 @@ function _initState() {
    * Yields only entries that have been modified in
    * comparison to `_DEFAULT_FORM`.
    * @param {FormData} modifiedForm
+   * @returns {IterableIterator<[string, string]>}
    */
   function* onlyChangedEntries(modifiedForm) {
     // Remove default values
@@ -146,7 +146,7 @@ function _initState() {
         modifiedValues.some((v, i) => v !== defaultValues[i]);
       if (valuesChanged) {
         for (const value of modifiedValues) {
-          yield [key, value];
+          yield [key, /** @type {string} */ (value)];
         }
       }
     }
@@ -155,7 +155,7 @@ function _initState() {
   // Update the state when the form changes.
   function _updateStateFromForm() {
     const modifiedForm = new FormData(form);
-    _filterParams = new URLSearchParams(onlyChangedEntries(modifiedForm));
+    _filterParams = new URLSearchParams(Array.from(onlyChangedEntries(modifiedForm)));
     history.replaceState(null, null, state.toString());
   }
 
@@ -168,7 +168,7 @@ function _startListeners() {
   const _SHOW_OPTIONS_STORAGE_KEY = 'show-options';
 
   /** @type {HTMLFieldSetElement} */
-  const typesFilterContainer = document.getElementById('types-filter');
+  const typesFilterContainer = document.querySelector('#types-filter');
   /** @type {HTMLInputElement} */
   const methodCountInput = form.elements.namedItem('method_count');
   /** @type {HTMLFieldSetElement} */
@@ -176,7 +176,7 @@ function _startListeners() {
   /** @type {HTMLCollectionOf<HTMLInputElement>} */
   const typeCheckboxes = form.elements.namedItem(_TYPE_STATE_KEY);
   /** @type {HTMLSpanElement} */
-  const sizeHeader = document.getElementById('size-header');
+  const sizeHeader = document.querySelector('#size-header');
 
   /**
    * The settings dialog on the side can be toggled on and off by elements with
@@ -283,7 +283,7 @@ function _makeIconTemplateGetter() {
    */
   function getIconTemplate(type, readonly = false) {
     const iconTemplate = symbolIcons[type] || symbolIcons[_OTHER_SYMBOL_TYPE];
-    return readonly ? iconTemplate : iconTemplate.cloneNode(true);
+    return readonly ? iconTemplate : /** @type {SVGSVGElement} */ (iconTemplate.cloneNode(true));
   }
 
   /**
@@ -386,7 +386,9 @@ function _makeSizeTextGetter() {
 }
 
 /** Utilities for working with the state */
-const state = _initState();
+export const state = _initState();
 const { getIconTemplate, getIconStyle } = _makeIconTemplateGetter();
 const { getSizeContents, setSizeClasses } = _makeSizeTextGetter();
 _startListeners();
+
+export { getIconTemplate, getIconStyle, getSizeContents, setSizeClasses };

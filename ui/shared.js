@@ -26,6 +26,7 @@
  * @prop {string} type Type of this node. If this node has children, the string
  * may have a second character to denote the most common child.
  * @prop {number} flags
+ * @prop {number} [numAliases]
  * @prop {{[type: string]: TreeNodeChildStats}} childStats Stats about this
  * node's descendants, organized by symbol type.
  */
@@ -129,8 +130,7 @@ const _NO_NAME = '(No path)';
 /** Key where type is stored in the query string state. */
 const _TYPE_STATE_KEY = 'type';
 
-/** @type {string | string[]} */
-const _LOCALE = navigator.languages || navigator.language;
+const _LOCALE = /** @type {string | string[]} */ (navigator.languages || navigator.language);
 
 /**
  * Returns shortName for a tree node.
@@ -157,7 +157,7 @@ function* types(typesList) {
 
 /**
  * Limit how frequently `func` is called.
- * @template {T}
+ * @template T
  * @param {T & Function} func
  * @param {number} wait Time to wait before func can be called again (ms).
  * @returns {T}
@@ -167,7 +167,7 @@ function debounce(func, wait) {
   let timeoutId;
   function debounced(...args) {
     clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => func(...args), wait);
+    timeoutId = self.setTimeout(() => func(...args), wait);
   }
   return /** @type {any} */ (debounced);
 }
