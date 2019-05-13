@@ -2,24 +2,31 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// @ts-check
+import {
+  GetSizeResult,
+  TreeNode,
+  types,
+  _BYTE_UNITS,
+  _DEX_METHOD_SYMBOL_TYPE,
+  _LOCALE,
+  _OTHER_SYMBOL_TYPE,
+  _TYPE_STATE_KEY,
+} from './shared';
 
 /**
  * @fileoverview
  * Methods for manipulating the state and the DOM of the page
  */
 
-/** @type {HTMLFormElement} Form containing options and filters */
-export const form = document.querySelector('#options');
+/** Form containing options and filters */
+export const form = document.querySelector<HTMLFormElement>('#options')!;
 
 /** Utilities for working with the DOM */
 export const dom = {
   /**
    * Create a document fragment from the given nodes
-   * @param {Iterable<Node>} nodes
-   * @returns {DocumentFragment}
    */
-  createFragment(nodes) {
+  createFragment(nodes: Iterable<Node>): DocumentFragment {
     const fragment = document.createDocumentFragment();
     for (const node of nodes) fragment.appendChild(node);
     return fragment;
@@ -27,10 +34,8 @@ export const dom = {
   /**
    * Removes all the existing children of `parent` and inserts
    * `newChild` in their place
-   * @param {Node} parent
-   * @param {Node | null} newChild
    */
-  replace(parent, newChild) {
+  replace(parent: Node, newChild: Node | null) {
     while (parent.firstChild) parent.removeChild(parent.firstChild);
     if (newChild != null) parent.appendChild(newChild);
   },
@@ -40,7 +45,7 @@ export const dom = {
    * @param {string} text Text content for the element.
    * @param {string} [className] Class to apply to the element.
    */
-  textElement(tagName, text, className) {
+  textElement(tagName: string, text: string, className?: string) {
     const element = document.createElement(tagName);
     element.textContent = text;
     if (className) element.className = className;
@@ -70,7 +75,7 @@ function _initState() {
      * @param {string} key
      * @returns {string | null}
      */
-    get(key) {
+    get(key: string) {
       return _filterParams.get(key);
     },
     /**
@@ -78,7 +83,7 @@ function _initState() {
      * @param {string} key
      * @returns {boolean}
      */
-    has(key) {
+    has(key: string) {
       return _filterParams.has(key);
     },
     /**
@@ -97,19 +102,19 @@ function _initState() {
      * @param {string} key
      * @param {string | null} value
      */
-    set(key, value) {
+    set(key: string, value: string | null) {
       if (value == null) {
         _filterParams.delete(key);
       } else {
         _filterParams.set(key, value);
       }
-      history.replaceState(null, null, state.toString());
+      history.replaceState(null, null as any, state.toString());
     },
   });
 
   // Update form inputs to reflect the state from URL.
   for (const element of Array.from(form.elements)) {
-    const input = /** @type {HTMLInputElement} */ (element);
+    const input = element as HTMLInputElement;
     if (input.name) {
       const values = _filterParams.getAll(input.name);
       const [value] = values;
@@ -135,7 +140,7 @@ function _initState() {
    * @param {FormData} modifiedForm
    * @returns {IterableIterator<[string, string]>}
    */
-  function* onlyChangedEntries(modifiedForm) {
+  function* onlyChangedEntries(modifiedForm: FormData): IterableIterator<[string, string]> {
     // Remove default values
     for (const key of modifiedForm.keys()) {
       const modifiedValues = modifiedForm.getAll(key);
@@ -146,7 +151,7 @@ function _initState() {
         modifiedValues.some((v, i) => v !== defaultValues[i]);
       if (valuesChanged) {
         for (const value of modifiedValues) {
-          yield [key, /** @type {string} */ (value)];
+          yield [key, value as string];
         }
       }
     }
@@ -156,7 +161,7 @@ function _initState() {
   function _updateStateFromForm() {
     const modifiedForm = new FormData(form);
     _filterParams = new URLSearchParams(Array.from(onlyChangedEntries(modifiedForm)));
-    history.replaceState(null, null, state.toString());
+    history.replaceState(null, null as any, state.toString());
   }
 
   form.addEventListener('change', _updateStateFromForm);
@@ -167,16 +172,13 @@ function _initState() {
 function _startListeners() {
   const _SHOW_OPTIONS_STORAGE_KEY = 'show-options';
 
-  /** @type {HTMLFieldSetElement} */
-  const typesFilterContainer = document.querySelector('#types-filter');
-  /** @type {HTMLInputElement} */
-  const methodCountInput = form.elements.namedItem('method_count');
-  /** @type {HTMLFieldSetElement} */
-  const byteunit = form.elements.namedItem('byteunit');
-  /** @type {HTMLCollectionOf<HTMLInputElement>} */
-  const typeCheckboxes = form.elements.namedItem(_TYPE_STATE_KEY);
-  /** @type {HTMLSpanElement} */
-  const sizeHeader = document.querySelector('#size-header');
+  const typesFilterContainer = document.querySelector<HTMLFieldSetElement>('#types-filter')!;
+  const methodCountInput = form.elements.namedItem('method_count') as HTMLInputElement;
+  const byteunit = form.elements.namedItem('byteunit') as HTMLFieldSetElement;
+  const typeCheckboxes = (form.elements.namedItem(_TYPE_STATE_KEY) as unknown) as HTMLCollectionOf<
+    HTMLInputElement
+  >;
+  const sizeHeader = document.querySelector<HTMLSpanElement>('#size-header')!;
 
   /**
    * The settings dialog on the side can be toggled on and off by elements with
@@ -215,9 +217,9 @@ function _startListeners() {
    * Display error text on blur for regex inputs, if the input is invalid.
    * @param {Event} event
    */
-  function checkForRegExError(event) {
-    const input = /** @type {HTMLInputElement} */ (event.currentTarget);
-    const errorBox = document.getElementById(input.getAttribute('aria-describedby'));
+  function checkForRegExError(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const errorBox = document.getElementById(input.getAttribute('aria-describedby')!)!;
     try {
       new RegExp(input.value);
       errorBox.textContent = '';
@@ -232,13 +234,13 @@ function _startListeners() {
     input.dispatchEvent(new Event('blur'));
   }
 
-  document.getElementById('type-all').addEventListener('click', () => {
+  document.getElementById('type-all')!.addEventListener('click', () => {
     for (const checkbox of typeCheckboxes) {
       checkbox.checked = true;
     }
     form.dispatchEvent(new Event('change'));
   });
-  document.getElementById('type-none').addEventListener('click', () => {
+  document.getElementById('type-none')!.addEventListener('click', () => {
     for (const checkbox of typeCheckboxes) {
       checkbox.checked = false;
     }
@@ -247,32 +249,30 @@ function _startListeners() {
 }
 
 function _makeIconTemplateGetter() {
-  const _icons = document.getElementById('icons');
+  const _icons = document.getElementById('icons')!;
 
   /**
-   * @type {{[type:string]: SVGSVGElement}} Icon elements
-   * that correspond to each symbol type.
+   * Icon elements that correspond to each symbol type.
    */
-  const symbolIcons = {
-    D: _icons.querySelector('.foldericon'),
-    C: _icons.querySelector('.componenticon'),
-    J: _icons.querySelector('.javaclassicon'),
-    F: _icons.querySelector('.fileicon'),
-    b: _icons.querySelector('.bssicon'),
-    d: _icons.querySelector('.dataicon'),
-    r: _icons.querySelector('.readonlyicon'),
-    t: _icons.querySelector('.codeicon'),
-    R: _icons.querySelector('.relroicon'),
-    '*': _icons.querySelector('.generatedicon'),
-    x: _icons.querySelector('.dexicon'),
-    m: _icons.querySelector('.dexmethodicon'),
-    p: _icons.querySelector('.localpakicon'),
-    P: _icons.querySelector('.nonlocalpakicon'),
-    o: _icons.querySelector('.othericon'), // used as default icon
+  const symbolIcons: { [type: string]: SVGSVGElement } = {
+    D: _icons.querySelector<SVGSVGElement>('.foldericon')!,
+    C: _icons.querySelector<SVGSVGElement>('.componenticon')!,
+    J: _icons.querySelector<SVGSVGElement>('.javaclassicon')!,
+    F: _icons.querySelector<SVGSVGElement>('.fileicon')!,
+    b: _icons.querySelector<SVGSVGElement>('.bssicon')!,
+    d: _icons.querySelector<SVGSVGElement>('.dataicon')!,
+    r: _icons.querySelector<SVGSVGElement>('.readonlyicon')!,
+    t: _icons.querySelector<SVGSVGElement>('.codeicon')!,
+    R: _icons.querySelector<SVGSVGElement>('.relroicon')!,
+    '*': _icons.querySelector<SVGSVGElement>('.generatedicon')!,
+    x: _icons.querySelector<SVGSVGElement>('.dexicon')!,
+    m: _icons.querySelector<SVGSVGElement>('.dexmethodicon')!,
+    p: _icons.querySelector<SVGSVGElement>('.localpakicon')!,
+    P: _icons.querySelector<SVGSVGElement>('.nonlocalpakicon')!,
+    o: _icons.querySelector<SVGSVGElement>('.othericon')!, // used as default icon
   };
 
-  /** @type {Map<string, {color:string,description:string}>} */
-  const iconInfoCache = new Map();
+  const iconInfoCache = new Map<string, { color: string; description: string }>();
 
   /**
    * Returns the SVG icon template element corresponding to the given type.
@@ -281,9 +281,9 @@ function _makeIconTemplateGetter() {
    * If false, a copy is returned that can be modified.
    * @returns {SVGSVGElement}
    */
-  function getIconTemplate(type, readonly = false) {
+  function getIconTemplate(type: string, readonly = false): SVGSVGElement {
     const iconTemplate = symbolIcons[type] || symbolIcons[_OTHER_SYMBOL_TYPE];
-    return readonly ? iconTemplate : /** @type {SVGSVGElement} */ (iconTemplate.cloneNode(true));
+    return readonly ? iconTemplate : (iconTemplate.cloneNode(true) as SVGSVGElement);
   }
 
   /**
@@ -291,13 +291,13 @@ function _makeIconTemplateGetter() {
    * given type.
    * @param {string} type Symbol type character.
    */
-  function getIconStyle(type) {
+  function getIconStyle(type: string) {
     let info = iconInfoCache.get(type);
     if (info == null) {
       const icon = getIconTemplate(type, true);
       info = {
-        color: icon.getAttribute('fill'),
-        description: icon.querySelector('title').textContent,
+        color: icon.getAttribute('fill')!,
+        description: icon.querySelector('title')!.textContent!,
       };
       iconInfoCache.set(type, info);
     }
@@ -322,7 +322,7 @@ function _makeSizeTextGetter() {
    * @returns {GetSizeResult} Object with hover text title and
    * size element body. Can be consumed by `_applySizeFunc()`
    */
-  function getSizeContents(node) {
+  function getSizeContents(node: TreeNode): GetSizeResult {
     if (state.has('method_count')) {
       const { count: methodCount = 0 } = node.childStats[_DEX_METHOD_SYMBOL_TYPE] || {};
       const methodStr = methodCount.toLocaleString(_LOCALE, {
@@ -343,7 +343,7 @@ function _makeSizeTextGetter() {
         description += ` for 1 of ${node.numAliases} aliases`;
       }
 
-      const unit = state.get('byteunit') || 'KiB';
+      const unit = (state.get('byteunit') as keyof typeof _BYTE_UNITS) || 'KiB';
       const suffix = _BYTE_UNITS[unit];
       // Format |bytes| as a number with 2 digits after the decimal point
       const text = (bytes / suffix).toLocaleString(_LOCALE, {
@@ -364,10 +364,8 @@ function _makeSizeTextGetter() {
 
   /**
    * Set classes on an element based on the size it represents.
-   * @param {HTMLElement} sizeElement
-   * @param {number} value
    */
-  function setSizeClasses(sizeElement, value) {
+  function setSizeClasses(sizeElement: HTMLElement, value: number) {
     const shouldHaveStyle = state.has('diff_mode') && Math.abs(value) > _SIZE_CHANGE_CUTOFF;
     if (shouldHaveStyle) {
       if (value < 0) {

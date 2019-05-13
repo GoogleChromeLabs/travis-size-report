@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// @ts-check
-
 /**
  * @fileoverview
  * UI classes and methods for the Tree View in the
  * Binary Size Analysis HTML report.
  */
 
+import { shortName, TreeNode, TreeProgress, _DEX_METHOD_SYMBOL_TYPE } from './shared';
+import { treeReady, worker } from './start-worker';
 import {
   dom,
   form,
@@ -18,11 +18,11 @@ import {
   getSizeContents,
   setSizeClasses,
   state,
-} from './state.js';
+} from './state';
 
-/** @typedef {HTMLAnchorElement} TreeElement */
-/** @typedef {HTMLSpanElement} LeafElement */
-/** @typedef {TreeElement | LeafElement} TreeNodeElement */
+type TreeElement = HTMLAnchorElement;
+type LeafElement = HTMLSpanElement;
+type TreeNodeElement = TreeElement | LeafElement;
 
 const newTreeElement = (() => {
   /** Capture one of: "::", "../", "./", "/", "#" */
@@ -31,28 +31,27 @@ const newTreeElement = (() => {
   const _ZERO_WIDTH_SPACE = '$&\u200b';
 
   // Templates for tree nodes in the UI.
-  /** @type {HTMLTemplateElement} Template for leaves in the tree */
-  const _leafTemplate = document.querySelector('#treenode-symbol');
-  /** @type {HTMLTemplateElement} Template for trees */
-  const _treeTemplate = document.querySelector('#treenode-container');
+  /** Template for leaves in the tree */
+  const _leafTemplate = document.querySelector<HTMLTemplateElement>('#treenode-symbol')!;
+  /** Template for trees */
+  const _treeTemplate = document.querySelector<HTMLTemplateElement>('#treenode-container')!;
 
-  /** @type {HTMLUListElement} Symbol tree container */
-  const _symbolTree = document.querySelector('#symboltree');
+  /** Symbol tree container */
+  const _symbolTree = document.querySelector<HTMLUListElement>('#symboltree')!;
 
   /**
    * HTMLCollection of all tree node elements. Updates itself automatically.
    */
-  const _liveNodeList = /** @type {HTMLCollectionOf<TreeNodeElement>} */ (document.getElementsByClassName(
-    'node',
-  ));
+  const _liveNodeList = document.getElementsByClassName('node') as HTMLCollectionOf<
+    TreeNodeElement
+  >;
 
   /**
-   * @type {WeakMap<HTMLElement, Readonly<TreeNode>>}
    * Associates UI nodes with the corresponding tree data object
    * so that event listeners and other methods can
    * query the original data.
    */
-  const _uiNodeData = new WeakMap();
+  const _uiNodeData = new WeakMap<HTMLElement, Readonly<TreeNode>>();
 
   /**
    * Applies highlights to the tree element based on certain flags and state.
@@ -60,7 +59,7 @@ const newTreeElement = (() => {
    * short name of the tree item.
    * @param {TreeNode} node Data about this symbol name element's tree node.
    */
-  function _highlightSymbolName(symbolNameElement, node) {
+  function _highlightSymbolName(symbolNameElement: HTMLSpanElement, node: TreeNode) {
     const dexMethodStats = node.childStats[_DEX_METHOD_SYMBOL_TYPE];
     if (dexMethodStats && dexMethodStats.count < 0) {
       // This symbol was removed between the before and after versions.
@@ -80,7 +79,7 @@ const newTreeElement = (() => {
    * @param {HTMLElement} sizeElement Element that should display the size
    * @param {TreeNode} node Data about this size element's tree node.
    */
-  function _setSize(sizeElement, node) {
+  function _setSize(sizeElement: HTMLElement, node: TreeNode) {
     const { description, element, value } = getSizeContents(node);
 
     // Replace the contents of '.size' and change its title
@@ -95,8 +94,8 @@ const newTreeElement = (() => {
    * single tree item in the page to reach other areas.
    * @param {number | HTMLElement} el Index of tree node in `_liveNodeList`
    */
-  function _focusTreeElement(el) {
-    const lastFocused = /** @type {HTMLElement} */ (document.activeElement);
+  function _focusTreeElement(el: number | HTMLElement) {
+    const lastFocused = document.activeElement as HTMLElement;
     // If the last focused element was a tree node element, change its tabindex.
     if (_uiNodeData.has(lastFocused)) {
       // Update DOM
@@ -112,15 +111,14 @@ const newTreeElement = (() => {
 
   /**
    * Click event handler to expand or close the child group of a tree.
-   * @param {Event} event
    */
-  async function _toggleTreeElement(event) {
+  async function _toggleTreeElement(event: Event) {
     event.preventDefault();
 
     // See `#treenode-container` for the relation of these elements.
-    const link = /** @type {TreeElement} */ (event.currentTarget);
-    const treeitem = /** @type {HTMLLIElement} */ (link.parentElement);
-    const group = /** @type {HTMLUListElement} */ (link.nextElementSibling);
+    const link = event.currentTarget as TreeElement;
+    const treeitem = link.parentElement as HTMLLIElement;
+    const group = link.nextElementSibling as HTMLUListElement;
 
     const isExpanded = treeitem.getAttribute('aria-expanded') === 'true';
     if (isExpanded) {
@@ -132,21 +130,19 @@ const newTreeElement = (() => {
 
       // Get data for the children of this tree node element. If the children
       // have not yet been loaded, request for the data from the worker.
-      let data = _uiNodeData.get(link);
+      let data = _uiNodeData.get(link) || null;
       if (data == null || data.children == null) {
-        /** @type {HTMLSpanElement} */
-        const symbolName = link.querySelector('.symbol-name');
+        const symbolName = link.querySelector<HTMLSpanElement>('.symbol-name')!;
         const idPath = symbolName.title;
         data = await worker.openNode(idPath);
-        _uiNodeData.set(link, data);
+        _uiNodeData.set(link, data!);
       }
 
-      const newElements = data.children.map(child => newTreeElement(child));
+      const newElements = data!.children!.map(child => newTreeElement(child));
       if (newElements.length === 1) {
         // Open the inner element if it only has a single child.
         // Ensures nodes like "java"->"com"->"google" are opened all at once.
-        /** @type {TreeNodeElement} */
-        const link = newElements[0].querySelector('.node');
+        const link = newElements[0].querySelector<TreeNodeElement>('.node')!;
         link.click();
       }
       const newElementsFragment = dom.createFragment(newElements);
@@ -162,7 +158,7 @@ const newTreeElement = (() => {
    * Tree view keydown event handler to move focus for the given element.
    * @param {KeyboardEvent} event Event passed from keydown event listener.
    */
-  function _handleKeyNavigation(event) {
+  function _handleKeyNavigation(event: KeyboardEvent) {
     if (event.altKey || event.ctrlKey || event.metaKey) {
       return;
     }
@@ -172,9 +168,9 @@ const newTreeElement = (() => {
      * leaves use `<span>` tags.
      * See `#treenode-container` and `#treenode-symbol`.
      */
-    const link = /** @type {TreeNodeElement} */ (event.target);
-    /** @type {number} Index of this element in the node list */
-    const focusIndex = Array.prototype.indexOf.call(_liveNodeList, link);
+    const link = event.target as TreeNodeElement;
+    /** Index of this element in the node list */
+    const focusIndex: number = Array.prototype.indexOf.call(_liveNodeList, link);
 
     /** Focus the tree element immediately following this one */
     function _focusNext() {
@@ -192,12 +188,10 @@ const newTreeElement = (() => {
 
     /**
      * Focus the tree element at `index` if it starts with `char`.
-     * @param {string} char
-     * @param {number} index
      * @returns {boolean} True if the short name did start with `char`.
      */
-    function _focusIfStartsWith(char, index) {
-      const data = _uiNodeData.get(_liveNodeList[index]);
+    function _focusIfStartsWith(char: string, index: number): boolean {
+      const data = _uiNodeData.get(_liveNodeList[index])!;
       if (shortName(data).startsWith(char)) {
         event.preventDefault();
         _focusTreeElement(index);
@@ -225,7 +219,7 @@ const newTreeElement = (() => {
         break;
       // If closed tree, open tree. Otherwise, move to first child.
       case 'ArrowRight': {
-        const expanded = link.parentElement.getAttribute('aria-expanded');
+        const expanded = link.parentElement!.getAttribute('aria-expanded');
         if (expanded != null) {
           // Leafs do not have the aria-expanded property
           if (expanded === 'true') {
@@ -239,14 +233,14 @@ const newTreeElement = (() => {
       // If opened tree, close tree. Otherwise, move to parent.
       case 'ArrowLeft':
         {
-          const isExpanded = link.parentElement.getAttribute('aria-expanded') === 'true';
+          const isExpanded = link.parentElement!.getAttribute('aria-expanded') === 'true';
           if (isExpanded) {
             _toggle();
           } else {
-            const groupList = link.parentElement.parentElement;
+            const groupList = link.parentElement!.parentElement!;
             if (groupList.getAttribute('role') === 'group') {
               event.preventDefault();
-              const parentLink = /** @type {TreeElement} */ (groupList.previousElementSibling);
+              const parentLink = groupList.previousElementSibling as TreeElement;
               _focusTreeElement(parentLink);
             }
           }
@@ -264,13 +258,12 @@ const newTreeElement = (() => {
         break;
       // Expand all sibling nodes
       case '*':
-        const groupList = link.parentElement.parentElement;
+        const groupList = link.parentElement!.parentElement!;
         if (groupList.getAttribute('role') === 'group') {
           event.preventDefault();
           for (const li of groupList.children) {
             if (li.getAttribute('aria-expanded') !== 'true') {
-              /** @type {TreeNodeElement} */
-              const otherLink = li.querySelector('.node');
+              const otherLink = li.querySelector<TreeNodeElement>('.node')!;
               otherLink.click();
             }
           }
@@ -301,21 +294,20 @@ const newTreeElement = (() => {
    * The handler updates the state manually, then iterates all nodes and
    * applies `callback` to certain child elements of each node.
    * The elements are expected to be direct children of `.node` elements.
-   * @param {string} selector
-   * @param {(el: HTMLElement, data: TreeNode) => void} callback
-   * @returns {(event: Event) => void}
    */
-  function _handleDynamicInputChange(selector, callback) {
-    return event => {
-      const input = /** @type {HTMLInputElement} */ (event.target);
+  function _handleDynamicInputChange(
+    selector: string,
+    callback: (el: HTMLElement, data: TreeNode) => void,
+  ) {
+    return (event: Event) => {
+      const input = event.target as HTMLInputElement;
       // Update state early.
       // This way, the state will be correct if `callback` looks at it.
       state.set(input.name, input.value);
 
       for (const link of _liveNodeList) {
-        /** @type {HTMLElement} */
-        const element = link.querySelector(selector);
-        callback(element, _uiNodeData.get(link));
+        const element = link.querySelector<HTMLElement>(selector)!;
+        callback(element, _uiNodeData.get(link)!);
       }
     };
   }
@@ -328,35 +320,33 @@ const newTreeElement = (() => {
    * @param {TreeNode} data Data to use for the UI.
    * @returns {DocumentFragment}
    */
-  function newTreeElement(data) {
+  function newTreeElement(data: TreeNode) {
     const isLeaf = data.children && data.children.length === 0;
     const template = isLeaf ? _leafTemplate : _treeTemplate;
     const element = document.importNode(template.content, true);
 
     // Associate clickable node & tree data
-    /** @type {TreeNodeElement} */
-    const link = element.querySelector('.node');
+    const link = element.querySelector<TreeNodeElement>('.node')!;
     _uiNodeData.set(link, Object.freeze(data));
 
     // Icons are predefined in the HTML through hidden SVG elements
     const type = data.type[0];
     const icon = getIconTemplate(type);
     if (!isLeaf) {
-      const symbolStyle = getIconStyle(data.type[1]);
+      const symbolStyle = getIconStyle(data.type[1])!;
       icon.setAttribute('fill', symbolStyle.color);
     }
     // Insert an SVG icon at the start of the link to represent type
     link.insertBefore(icon, link.firstElementChild);
 
     // Set the symbol name and hover text
-    /** @type {HTMLSpanElement} */
-    const symbolName = element.querySelector('.symbol-name');
+    const symbolName = element.querySelector<HTMLSpanElement>('.symbol-name')!;
     symbolName.textContent = shortName(data).replace(_SPECIAL_CHAR_REGEX, _ZERO_WIDTH_SPACE);
     symbolName.title = data.idPath;
     _highlightSymbolName(symbolName, data);
 
     // Set the byte size and hover text
-    _setSize(element.querySelector('.size'), data);
+    _setSize(element.querySelector<HTMLElement>('.size')!, data);
 
     if (!isLeaf) {
       link.addEventListener('click', _toggleTreeElement);
@@ -366,38 +356,38 @@ const newTreeElement = (() => {
   }
 
   // When the `byteunit` state changes, update all .size elements.
-  const _byteunitSelect = /** @type {HTMLSelectElement} */ (form.elements.namedItem('byteunit'));
+  const _byteunitSelect = form.elements.namedItem('byteunit') as HTMLSelectElement;
   _byteunitSelect.addEventListener('change', _handleDynamicInputChange('.size', _setSize));
 
   _symbolTree.addEventListener('keydown', _handleKeyNavigation);
   _symbolTree.addEventListener('focusout', () =>
-    _symbolTree.parentElement.classList.remove('focused'),
+    _symbolTree.parentElement!.classList.remove('focused'),
   );
   window.addEventListener('keydown', event => {
-    const focusedElement = /** @type {Element} */ (event.target);
+    const focusedElement = event.target as Element;
     if (event.key === '?' && focusedElement.tagName !== 'INPUT') {
       // Open help when "?" is pressed
-      document.getElementById('faq').click();
+      document.getElementById('faq')!.click();
     }
   });
 
   import('./infocard-ui.js').then(({ displayInfocard }) => {
-    _symbolTree.addEventListener('focusin', event => {
-      const link = /** @type {TreeNodeElement} */ (event.target);
-      displayInfocard(_uiNodeData.get(link));
-      _symbolTree.parentElement.classList.add('focused');
+    _symbolTree.addEventListener('focusin', (event: Event) => {
+      const link = event.target as TreeNodeElement;
+      displayInfocard(_uiNodeData.get(link)!);
+      _symbolTree.parentElement!.classList.add('focused');
     });
     _symbolTree.addEventListener('mouseover', event => {
       const active = document.activeElement;
       const nodeAlreadyFocused = active && active.matches('.node');
 
-      const mouseOvered = /** @type {Element} */ (event.target);
-      const link = /** @type {TreeNodeElement} */ (mouseOvered.closest('.node'));
+      const mouseOvered = event.target as Element;
+      const link = mouseOvered.closest('.node') as TreeNodeElement;
 
       // Display the infocard when a node is hovered over,
       // unless another node is currently focused
       if (link != null && !nodeAlreadyFocused) {
-        displayInfocard(_uiNodeData.get(link));
+        displayInfocard(_uiNodeData.get(link)!);
       }
     });
   });
@@ -407,17 +397,15 @@ const newTreeElement = (() => {
 
 {
   class ProgressBar {
-    /** @param {string} selector */
-    constructor(selector) {
-      /** @type {HTMLProgressElement} */
-      this._element = document.querySelector(selector);
+    private _element: HTMLProgressElement;
+    lastValue: number;
+
+    constructor(selector: string) {
+      this._element = document.querySelector<HTMLProgressElement>(selector)!;
       this.lastValue = this._element.value;
     }
 
-    /**
-     * @param {number} val
-     */
-    setValue(val) {
+    setValue(val: number) {
       if (val === 0 || val >= this.lastValue) {
         this._element.value = val;
         this.lastValue = val;
@@ -429,25 +417,20 @@ const newTreeElement = (() => {
     }
   }
 
-  /** @type {HTMLUListElement} */
-  const _symbolTree = document.querySelector('#symboltree');
-  /** @type {HTMLInputElement} */
-  const _fileUpload = document.querySelector('#upload');
-  const _dataUrlInput = /** @type {HTMLInputElement} */ (form.elements.namedItem('load_url'));
+  const _symbolTree = document.querySelector<HTMLUListElement>('#symboltree')!;
+  const _fileUpload = document.querySelector<HTMLInputElement>('#upload')!;
+  const _dataUrlInput = form.elements.namedItem('load_url') as HTMLInputElement;
   const _progress = new ProgressBar('#progress');
 
   /**
    * Displays the given data as a tree view
-   * @param {TreeProgress} message
    */
-  function displayTree(message) {
+  function displayTree(message: TreeProgress) {
     const { root, percent, diffMode, error } = message;
-    /** @type {DocumentFragment | null} */
-    let rootElement = null;
+    let rootElement: DocumentFragment | null = null;
     if (root) {
       rootElement = newTreeElement(root);
-      /** @type {HTMLAnchorElement} */
-      const link = rootElement.querySelector('.node');
+      const link = rootElement.querySelector<HTMLAnchorElement>('.node')!;
       // Expand the root UI node
       link.click();
       link.tabIndex = 0;
@@ -479,8 +462,8 @@ const newTreeElement = (() => {
   worker.setOnProgressHandler(displayTree);
 
   _fileUpload.addEventListener('change', event => {
-    const input = /** @type {HTMLInputElement} */ (event.currentTarget);
-    const file = input.files.item(0);
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files!.item(0);
     const fileUrl = URL.createObjectURL(file);
 
     _dataUrlInput.value = '';
@@ -492,7 +475,7 @@ const newTreeElement = (() => {
   });
 
   form.addEventListener('change', event => {
-    const input = /** @type {HTMLElement} */ (event.target);
+    const input = event.target as HTMLElement;
     // Update the tree when options change.
     // Some options update the tree themselves, don't regenerate when those
     // options (marked by `data-dynamic`) are changed.

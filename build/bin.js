@@ -8,12 +8,12 @@ var minimist = _interopDefault(require('minimist'));
 require('util');
 require('fs');
 require('url');
+require('node-fetch');
 require('glob');
 require('gzip-size');
-require('escape-string-regexp');
-require('node-fetch');
 require('chalk');
 require('pretty-bytes');
+require('escape-string-regexp');
 var index = require('./index.js');
 
 const argv = minimist(process.argv.slice(2), {

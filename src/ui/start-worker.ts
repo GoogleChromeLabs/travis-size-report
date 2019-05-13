@@ -2,26 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// @ts-check
-'use strict';
+import { TreeProgress, TreeNode } from './shared';
 
-const _innerWorker = new Worker('tree-worker.js');
+const _innerWorker = new Worker('../build/ui/tree-worker.js');
 
 /**
  * We use a worker to keep large tree creation logic off the UI thread.
  * This class is used to interact with the worker.
  */
 class TreeWorker {
+  private _worker: Worker;
+  /** ID counter used by `waitForResponse` */
+  private _requestId = 1;
+  private _loadTreeCallback: ((data: TreeProgress) => void) | null = null;
+
   /**
    * @param {Worker} worker Web worker to wrap
    */
-  constructor(worker) {
+  constructor(worker: Worker) {
     this._worker = worker;
-    /** ID counter used by `waitForResponse` */
-    this._requestId = 1;
-
-    /** @type {(data: TreeProgress) => void | null} callback for `loadTree` */
-    this._loadTreeCallback = null;
 
     this._worker.addEventListener('message', event => {
       if (this._loadTreeCallback && event.data.id === 0) {
@@ -30,15 +29,10 @@ class TreeWorker {
     });
   }
 
-  /**
-   *
-   * @param {string} action
-   * @param {any} data
-   */
-  _waitForResponse(action, data) {
+  _waitForResponse(action: string, data: unknown) {
     const id = ++this._requestId;
-    return new Promise((resolve, reject) => {
-      const handleResponse = event => {
+    return new Promise<unknown>((resolve, reject) => {
+      const handleResponse = (event: MessageEvent) => {
         if (event.data.id === id) {
           this._worker.removeEventListener('message', handleResponse);
           if (event.data.error) {
@@ -61,16 +55,16 @@ class TreeWorker {
    * @param {string} idPath Path of the node to find
    * @returns {Promise<TreeNode | null>}
    */
-  openNode(idPath) {
-    return this._waitForResponse('open', idPath);
+  openNode(idPath: string): Promise<TreeNode | null> {
+    return this._waitForResponse('open', idPath) as Promise<TreeNode | null>;
   }
 
   /**
    * Set callback used after `loadTree` is first called.
-   * @param {(data: TreeProgress) => void} callback Called when the worker
+   * @param callback Called when the worker
    * has some data to display. Complete when `progress` is 1.
    */
-  setOnProgressHandler(callback) {
+  setOnProgressHandler(callback: (data: TreeProgress) => void) {
     this._loadTreeCallback = callback;
   }
 
@@ -79,17 +73,16 @@ class TreeWorker {
    * the UI once complete. Uses query string as state for the options.
    * Use `onProgress` before calling `loadTree`.
    * @param {string} input
-   * @returns {Promise<TreeProgress>}
    */
-  loadTree(input = null) {
+  loadTree(input: string | null = null): Promise<TreeProgress> {
     return this._waitForResponse('load', {
       input,
       options: location.search.slice(1),
-    });
+    }) as Promise<TreeProgress>;
   }
 }
 
-const worker = new TreeWorker(_innerWorker);
+export const worker = new TreeWorker(_innerWorker);
 // Kick off the worker ASAP so it can start parsing data faster.
 // Subsequent calls will just use a worker locally.
-const treeReady = worker.loadTree('from-url://');
+export const treeReady = worker.loadTree('from-url://');

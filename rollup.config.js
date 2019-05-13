@@ -17,4 +17,28 @@ const nodeConfig = {
   plugins: [typescript(), resolve()],
 };
 
-export default [nodeConfig];
+/** @type {import('rollup').RollupOptions} */
+const uiConfig = {
+  input: 'src/ui/tree-ui.ts',
+  output: {
+    dir: 'build/ui',
+    format: 'esm',
+    sourcemap: true,
+  },
+  external: ['node-fetch', 'url'],
+  plugins: [typescript(), resolve()],
+};
+
+/** @type {import('rollup').RollupOptions} */
+const uiWorkerConfig = {
+  input: 'src/ui/tree-worker.ts',
+  output: {
+    file: 'build/ui/tree-worker.js',
+    format: 'esm',
+    sourcemap: true,
+  },
+  external: ['node-fetch', 'url'],
+  plugins: [typescript(), resolve()],
+};
+
+export default [nodeConfig, uiConfig, uiWorkerConfig];

@@ -7,8 +7,7 @@
 -->
 
   <head>
-    <title>Super Size Tiger View</title>
-    <script src="start-worker.js"></script>
+    <title>Travis Size Report</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#4285f4" />
     <link
@@ -19,8 +18,7 @@
     <link rel="stylesheet" href="options.css" />
     <link rel="icon" href="favicon.ico" sizes="16x16 32x32 256x256" type="image/x-icon" />
     <link rel="manifest" href="manifest.json" />
-    <script defer src="shared.js"></script>
-    <script type="module" src="tree-ui.js"></script>
+    <script type="module" src="../build/ui/tree-ui.js"></script>
     <script defer async>
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker
@@ -35,7 +33,7 @@
     <!-- App Toolbar -->
     <header class="appbar">
       <div class="appbar-inner">
-        <h1 class="headline">Super Size Tiger View</h1>
+        <h1 class="headline">Travis Size Report</h1>
         <input type="file" name="upload" id="upload" accept=".ndjson" />
         <label for="upload" class="text-button filled-button with-icon">
           <svg

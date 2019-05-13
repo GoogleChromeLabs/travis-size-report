@@ -6,12 +6,12 @@ function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'defau
 var util = require('util');
 var fs = require('fs');
 var url = require('url');
+var fetch$1 = _interopDefault(require('node-fetch'));
 var glob = _interopDefault(require('glob'));
 var gzipSize = _interopDefault(require('gzip-size'));
-var escapeRE = _interopDefault(require('escape-string-regexp'));
-var fetch = _interopDefault(require('node-fetch'));
 var chalk = _interopDefault(require('chalk'));
 var prettyBytes = _interopDefault(require('pretty-bytes'));
+var escapeRE = _interopDefault(require('escape-string-regexp'));
 
 const PLACEHOLDER_REGEX = /\\\[(\w+)\\\]/g;
 const REPLACEMENTS = {
@@ -69,30 +69,12 @@ function buildFindRenamedFunc(pattern) {
     };
 }
 
-const globP = util.promisify(glob);
-const statP = util.promisify(fs.stat);
-// Travis reports it doesn't support colour. IT IS WRONG.
-const alwaysChalk = new chalk.constructor({ level: 4 });
 const buildSizePrefix = '=== BUILD SIZES: ';
-const buildSizePrefixRe = new RegExp(`^${escapeRE(buildSizePrefix)}(.+)$`, 'm');
-/**
- * Recursively-read a directory and turn it into an array of FileDatas
- */
-function pathsToInfoArray(paths) {
-    return Promise.all(paths.map(async (path) => {
-        const gzipSizePromise = gzipSize.file(path);
-        const statSizePromise = statP(path).then(s => s.size);
-        return {
-            path,
-            size: await statSizePromise,
-            gzipSize: await gzipSizePromise,
-        };
-    }));
-}
+const buildSizePrefixRe = new RegExp(`^${buildSizePrefix}(.+)$`, 'm');
 function fetchTravis(path, searchParams = {}) {
-    const url$1 = new url.URL(path, 'https://api.travis-ci.org');
-    url$1.search = new url.URLSearchParams(searchParams).toString();
-    return fetch(url$1.href, {
+    const url = new URL(path, 'https://api.travis-ci.org');
+    url.search = new URLSearchParams(searchParams).toString();
+    return fetch(url.href, {
         headers: { 'Travis-API-Version': '3' },
     });
 }
@@ -104,13 +86,11 @@ function fetchTravisBuildInfo(user, repo, branch, limit = 1) {
         event_type: 'push',
     }).then(r => r.json());
 }
-function fetchTravisText(path) {
-    return fetchTravis(path).then(r => r.text());
-}
 function getFileDataFromTravis(builds) {
     return Promise.all(builds.map(async (build) => {
         const jobUrl = build.jobs[0]['@href'];
-        const log = await fetchTravisText(jobUrl + '/log.txt');
+        const response = await fetchTravis(jobUrl + '/log.txt');
+        const log = await response.text();
         const reResult = buildSizePrefixRe.exec(log);
         if (!reResult)
             return undefined;
@@ -120,10 +100,16 @@ function getFileDataFromTravis(builds) {
 /**
  * Scrape Travis for the previous build info.
  */
-async function getPreviousBuildInfo(user, repo, branch) {
-    const buildData = await fetchTravisBuildInfo(user, repo, branch);
-    const fileData = await getFileDataFromTravis(buildData.builds);
-    return fileData[0];
+async function getBuildInfo(user, repo, branch, limit = 1) {
+    let fileData;
+    try {
+        const buildData = await fetchTravisBuildInfo(user, repo, branch, limit);
+        fileData = await getFileDataFromTravis(buildData.builds);
+    }
+    catch (err) {
+        throw new Error(`Couldn't parse build info`);
+    }
+    return fileData;
 }
 /**
  * Generate an array that represents the difference between builds.
@@ -178,6 +164,26 @@ async function getChanges(previousBuildInfo, buildInfo, findRenamed) {
         }
     }
     return { newItems, deletedItems, sameItems, changedItems };
+}
+
+Object.assign(global, { URL: url.URL, URLSearchParams: url.URLSearchParams, fetch: fetch$1 });
+const globP = util.promisify(glob);
+const statP = util.promisify(fs.stat);
+// Travis reports it doesn't support colour. IT IS WRONG.
+const alwaysChalk = new chalk.constructor({ level: 4 });
+/**
+ * Recursively-read a directory and turn it into an array of FileDatas
+ */
+function pathsToInfoArray(paths) {
+    return Promise.all(paths.map(async (path) => {
+        const gzipSizePromise = gzipSize.file(path);
+        const statSizePromise = statP(path).then(s => s.size);
+        return {
+            path,
+            size: await statSizePromise,
+            gzipSize: await gzipSizePromise,
+        };
+    }));
 }
 function outputChanges(changes) {
     // One letter references, so it's easier to get the spacing right.
@@ -236,7 +242,7 @@ async function sizeReport(user, repo, files, { branch = 'master', findRenamed } 
     console.log('\nBuild change report:');
     let previousBuildInfo;
     try {
-        previousBuildInfo = await getPreviousBuildInfo(user, repo, branch);
+        [previousBuildInfo] = await getBuildInfo(user, repo, branch);
     }
     catch (err) {
         console.log(`  Couldn't parse previous build info`);

@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// @ts-check
-
 /**
  * @fileoverview
  * UI classes and methods for the info cards that display informations about
  * symbols as the user hovers or focuses on them.
  */
 
+import { hasFlag, shortName, TreeNode, _CONTAINER_TYPE_SET, _FLAGS, _LOCALE } from './shared';
 import {
   dom,
   getIconStyle,
@@ -17,7 +16,7 @@ import {
   getSizeContents,
   setSizeClasses,
   state,
-} from './state.js';
+} from './state';
 
 export const displayInfocard = (() => {
   const _CANVAS_RADIUS = 40;
@@ -36,28 +35,26 @@ export const displayInfocard = (() => {
   ]);
 
   class Infocard {
-    /**
-     * @param {string} id
-     */
-    constructor(id) {
-      this._infocard = document.getElementById(id);
-      /** @type {HTMLHeadingElement} */
-      this._sizeInfo = this._infocard.querySelector('.size-info');
-      /** @type {HTMLParagraphElement} */
-      this._pathInfo = this._infocard.querySelector('.path-info');
-      /** @type {HTMLDivElement} */
-      this._iconInfo = this._infocard.querySelector('.icon-info');
-      /** @type {HTMLSpanElement} */
-      this._typeInfo = this._infocard.querySelector('.type-info');
-      /** @type {HTMLSpanElement} */
-      this._flagsInfo = this._infocard.querySelector('.flags-info');
+    protected _infocard: HTMLElement;
+    private _sizeInfo: HTMLHeadingElement;
+    private _pathInfo: HTMLParagraphElement;
+    protected _iconInfo: HTMLDivElement;
+    private _typeInfo: HTMLSpanElement;
+    private _flagsInfo: HTMLSpanElement;
 
-      /**
-       * Last symbol type displayed.
-       * Tracked to avoid re-cloning the same icon.
-       * @type {string}
-       */
-      this._lastType = '';
+    /**
+     * Last symbol type displayed.
+     * Tracked to avoid re-cloning the same icon.
+     */
+    private _lastType = '';
+
+    constructor(id: string) {
+      this._infocard = document.getElementById(id)!;
+      this._sizeInfo = this._infocard.querySelector<HTMLHeadingElement>('.size-info')!;
+      this._pathInfo = this._infocard.querySelector<HTMLParagraphElement>('.path-info')!;
+      this._iconInfo = this._infocard.querySelector<HTMLDivElement>('.icon-info')!;
+      this._typeInfo = this._infocard.querySelector<HTMLSpanElement>('.type-info')!;
+      this._flagsInfo = this._infocard.querySelector<HTMLSpanElement>('.flags-info')!;
     }
 
     /**
@@ -65,9 +62,8 @@ export const displayInfocard = (() => {
      * node followed by an abbreviated version.
      *
      * Example: "1,234 bytes (1.23 KiB)"
-     * @param {TreeNode} node
      */
-    _updateSize(node) {
+    _updateSize(node: TreeNode) {
       const { description, element, value } = getSizeContents(node);
       const sizeFragment = dom.createFragment([
         document.createTextNode(`${description} (`),
@@ -86,7 +82,7 @@ export const displayInfocard = (() => {
      * srcPath / component for symbol nodes.
      * @param {TreeNode} node
      */
-    _updatePaths(node) {
+    _updatePaths(node: TreeNode) {
       let pathFragment;
       if (node.srcPath) {
         pathFragment = dom.createFragment([
@@ -111,12 +107,12 @@ export const displayInfocard = (() => {
      * title of the icon supplied.
      * @param {SVGSVGElement} icon Icon to display
      */
-    _setTypeContent(icon) {
-      const typeDescription = icon.querySelector('title').textContent;
+    _setTypeContent(icon: SVGSVGElement) {
+      const typeDescription = icon.querySelector('title')!.textContent;
       icon.setAttribute('fill', '#fff');
 
       this._typeInfo.textContent = typeDescription;
-      this._iconInfo.removeChild(this._iconInfo.lastElementChild);
+      this._iconInfo.removeChild(this._iconInfo.lastElementChild!);
       this._iconInfo.appendChild(icon);
     }
 
@@ -124,7 +120,7 @@ export const displayInfocard = (() => {
      * Returns a string representing the flags in the node.
      * @param {TreeNode} node
      */
-    _flagsString(node) {
+    _flagsString(node: TreeNode) {
       if (!node.flags) {
         return '';
       }
@@ -140,7 +136,7 @@ export const displayInfocard = (() => {
      * Toggle wheter or not the card is visible.
      * @param {boolean} isHidden
      */
-    setHidden(isHidden) {
+    setHidden(isHidden: boolean) {
       if (isHidden) {
         this._infocard.setAttribute('hidden', '');
       } else {
@@ -152,7 +148,7 @@ export const displayInfocard = (() => {
      * Updates the DOM for the info card.
      * @param {TreeNode} node
      */
-    _updateInfocard(node) {
+    _updateInfocard(node: TreeNode) {
       const type = node.type[0];
 
       // Update DOM
@@ -171,7 +167,7 @@ export const displayInfocard = (() => {
      * Updates the card on the next animation frame.
      * @param {TreeNode} node
      */
-    updateInfocard(node) {
+    updateInfocard(node: TreeNode) {
       // @ts-ignore
       cancelAnimationFrame(Infocard._pendingFrame);
       // @ts-ignore
@@ -183,7 +179,7 @@ export const displayInfocard = (() => {
     /**
      * @param {SVGSVGElement} icon Icon to display
      */
-    _setTypeContent(icon) {
+    _setTypeContent(icon: SVGSVGElement) {
       const color = icon.getAttribute('fill');
       super._setTypeContent(icon);
       this._iconInfo.style.backgroundColor = color;
@@ -191,26 +187,31 @@ export const displayInfocard = (() => {
   }
 
   class ContainerInfocard extends Infocard {
-    constructor(id) {
-      super(id);
-      this._tableBody = this._infocard.querySelector('tbody');
-      this._ctx = this._infocard.querySelector('canvas').getContext('2d');
+    private _tableBody: HTMLTableSectionElement;
+    private _ctx: CanvasRenderingContext2D;
 
-      /**
-       * @type {{[type:string]: HTMLTableRowElement}} Rows in the container
-       * infocard that represent a particular symbol type.
-       */
+    /**
+     * Rows in the container
+     * infocard that represent a particular symbol type.
+     */
+    private _infoRows: { [type: string]: HTMLTableRowElement };
+
+    constructor(id: string) {
+      super(id);
+      this._tableBody = this._infocard.querySelector('tbody')!;
+      this._ctx = this._infocard.querySelector('canvas')!.getContext('2d')!;
+
       this._infoRows = {
-        b: this._tableBody.querySelector('.bss-info'),
-        d: this._tableBody.querySelector('.data-info'),
-        r: this._tableBody.querySelector('.rodata-info'),
-        t: this._tableBody.querySelector('.text-info'),
-        R: this._tableBody.querySelector('.relro-info'),
-        x: this._tableBody.querySelector('.dexnon-info'),
-        m: this._tableBody.querySelector('.dex-info'),
-        p: this._tableBody.querySelector('.pak-info'),
-        P: this._tableBody.querySelector('.paknon-info'),
-        o: this._tableBody.querySelector('.other-info'),
+        b: this._tableBody.querySelector<HTMLTableRowElement>('.bss-info')!,
+        d: this._tableBody.querySelector<HTMLTableRowElement>('.data-info')!,
+        r: this._tableBody.querySelector<HTMLTableRowElement>('.rodata-info')!,
+        t: this._tableBody.querySelector<HTMLTableRowElement>('.text-info')!,
+        R: this._tableBody.querySelector<HTMLTableRowElement>('.relro-info')!,
+        x: this._tableBody.querySelector<HTMLTableRowElement>('.dexnon-info')!,
+        m: this._tableBody.querySelector<HTMLTableRowElement>('.dex-info')!,
+        p: this._tableBody.querySelector<HTMLTableRowElement>('.pak-info')!,
+        P: this._tableBody.querySelector<HTMLTableRowElement>('.paknon-info')!,
+        o: this._tableBody.querySelector<HTMLTableRowElement>('.other-info')!,
       };
 
       /**
@@ -229,12 +230,12 @@ export const displayInfocard = (() => {
     /**
      * @param {SVGSVGElement} icon Icon to display
      */
-    _setTypeContent(icon) {
+    _setTypeContent(icon: SVGSVGElement) {
       super._setTypeContent(icon);
       icon.classList.add('canvas-overlay');
     }
 
-    _flagsString(containerNode) {
+    _flagsString(containerNode: TreeNode) {
       const flags = super._flagsString(containerNode);
       return flags ? `- contains ${flags}` : '';
     }
@@ -246,7 +247,7 @@ export const displayInfocard = (() => {
      * @param {string} strokeColor Color of the pie slice border.
      * @param {number} lineWidth Width of the border.
      */
-    _drawBorder(angleStart, angleEnd, strokeColor, lineWidth) {
+    _drawBorder(angleStart: number, angleEnd: number, strokeColor: string, lineWidth: number) {
       this._ctx.strokeStyle = strokeColor;
       this._ctx.lineWidth = lineWidth;
       this._ctx.beginPath();
@@ -260,7 +261,7 @@ export const displayInfocard = (() => {
      * @param {number} angleEnd Ending angle, in radians.
      * @param {string} fillColor Color of the pie slice.
      */
-    _drawSlice(angleStart, angleEnd, fillColor) {
+    _drawSlice(angleStart: number, angleEnd: number, fillColor: string) {
       // Update DOM
       this._ctx.fillStyle = fillColor;
       // Move cursor to center, where line will start
@@ -281,7 +282,11 @@ export const displayInfocard = (() => {
      * @param {number} percentage How much the size represents in relation to
      * the total size of the symbols in the container.
      */
-    _updateBreakdownRow(row, stats, percentage) {
+    private _updateBreakdownRow(
+      row: HTMLTableRowElement,
+      stats: { size: number; count: number } | null,
+      percentage: number,
+    ) {
       if (stats == null || stats.size === 0) {
         if (row.parentElement != null) {
           this._tableBody.removeChild(row);
@@ -289,9 +294,9 @@ export const displayInfocard = (() => {
         return;
       }
 
-      const countColumn = row.querySelector('.count');
-      const sizeColumn = row.querySelector('.size');
-      const percentColumn = row.querySelector('.percent');
+      const countColumn = row.querySelector('.count')!;
+      const sizeColumn = row.querySelector('.size')!;
+      const percentColumn = row.querySelector('.percent')!;
 
       const countString = stats.count.toLocaleString(_LOCALE, {
         useGrouping: true,
@@ -318,7 +323,7 @@ export const displayInfocard = (() => {
      * Update DOM for the container infocard
      * @param {TreeNode} containerNode
      */
-    _updateInfocard(containerNode) {
+    _updateInfocard(containerNode: TreeNode) {
       const extraRows = Object.assign({}, this._infoRows);
       const statsEntries = Object.entries(containerNode.childStats).sort(
         (a, b) => b[1].size - a[1].size,
@@ -373,7 +378,7 @@ export const displayInfocard = (() => {
    * Displays an infocard for the given symbol on the next frame.
    * @param {TreeNode} node
    */
-  function displayInfocard(node) {
+  function displayInfocard(node: TreeNode) {
     if (_CONTAINER_TYPE_SET.has(node.type[0])) {
       _containerInfo.updateInfocard(node);
       _containerInfo.setHidden(false);

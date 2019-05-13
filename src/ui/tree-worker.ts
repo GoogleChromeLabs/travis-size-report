@@ -2,8 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// @ts-check
-'use strict';
+import {
+  debounce,
+  hasFlag,
+  shortName,
+  types,
+  TreeNode,
+  TreeProgress,
+  _CONTAINER_TYPES,
+  _DEX_METHOD_SYMBOL_TYPE,
+  _DEX_SYMBOL_TYPE,
+  _FLAGS,
+  _KEYS,
+  _NO_NAME,
+  _SYMBOL_TYPE_SET,
+  _TYPE_STATE_KEY,
+} from './shared';
+import { TravisFetcher } from './travis';
 
 /**
  * @fileoverview
@@ -11,30 +26,43 @@
  * display.
  */
 
-/**
- * @typedef {object} Meta
- * @prop {string[]} components
- * @prop {number} total
- * @prop {boolean} diff_mode
- */
-/**
- * @typedef {object} SymbolEntry JSON object representing a single symbol.
- * @prop {string} n Name of the symbol.
- * @prop {number} b Byte size of the symbol, divided by num_aliases.
- * @prop {string} t Single character string to indicate the symbol type.
- * @prop {number} [u] Count value indicating how many symbols this entry
- * represents. Negative value when removed in a diff.
- * @prop {number} [f] Bit flags, defaults to 0.
- */
-/**
- * @typedef {object} FileEntry JSON object representing a single file and its
- * symbols.
- * @prop {string} p Path to the file (source_path).
- * @prop {number} c Index of the file's component in meta (component_index).
- * @prop {SymbolEntry[]} s - Symbols belonging to this node. Array of objects.
- */
+export interface Meta {
+  components: string[];
+  total: number;
+  diff_mode: boolean;
+}
 
-importScripts('./shared.js');
+/**
+ * JSON object representing a single symbol.
+ */
+export interface SymbolEntry {
+  /** Name of the symbol. */
+  n: string;
+  /** Byte size of the symbol, divided by num_aliases. */
+  b: number;
+  /** Single character string to indicate the symbol type. */
+  t: string;
+  /**
+   * Count value indicating how many symbols this entry
+   * represents. Negative value when removed in a diff.
+   */
+  u?: number;
+  /** Bit flags, defaults to 0. */
+  f?: number;
+  /** Number of aliases */
+  a?: number;
+}
+
+export interface FileEntry {
+  /** Path to the file (source_path). */
+  p: string;
+  /** Index of the file's component in meta (component_index). */
+  c: number;
+  /** Symbols belonging to this node. Array of objects. */
+  s: SymbolEntry[];
+}
+
+type Filter = (symbolNode: TreeNode) => boolean;
 
 const _PATH_SEP = '/';
 const _NAMES_TO_FLAGS = Object.freeze({
@@ -44,25 +72,18 @@ const _NAMES_TO_FLAGS = Object.freeze({
   uncompressed: _FLAGS.UNCOMPRESSED,
 });
 
-/** @param {FileEntry} fileEntry */
-function getSourcePath(fileEntry) {
+function getSourcePath(fileEntry: FileEntry) {
   return fileEntry[_KEYS.SOURCE_PATH];
 }
 
-/**
- * @param {Meta} meta
- * @param {FileEntry} fileEntry
- */
-function getComponent(meta, fileEntry) {
+function getComponent(meta: Meta, fileEntry: FileEntry) {
   return meta.components[fileEntry[_KEYS.COMPONENT_INDEX]];
 }
 
 /**
  * Find the last index of either '/' or `sep` in the given path.
- * @param {string} path
- * @param {string} sep
  */
-function lastIndexOf(path, sep) {
+function lastIndexOf(path: string, sep: string) {
   if (sep === _PATH_SEP) {
     return path.lastIndexOf(_PATH_SEP);
   } else {
@@ -73,30 +94,28 @@ function lastIndexOf(path, sep) {
 /**
  * Return the dirname of the pathname 'path'. In a file path, this is the
  * full path of its folder.
- * @param {string} path Path to find dirname of.
- * @param {string} sep Path seperator, such as '/'.
+ * @param path Path to find dirname of.
+ * @param sep Path seperator, such as '/'.
  */
-function dirname(path, sep) {
+function dirname(path: string, sep: string) {
   return path.substring(0, lastIndexOf(path, sep));
 }
 
 /**
  * Compare two nodes for sorting. Used in sortTree.
- * @param {TreeNode} a
- * @param {TreeNode} b
  */
-function _compareFunc(a, b) {
+function _compareFunc(a: TreeNode, b: TreeNode) {
   return Math.abs(b.size) - Math.abs(a.size);
 }
 
 /**
  * Make a node with some default arguments
- * @param {Partial<TreeNode>} options
- * Values to use for the node. If a value is
+ * @param options Values to use for the node. If a value is
  * omitted, a default will be used instead.
- * @returns {TreeNode}
  */
-function createNode(options) {
+function createNode(
+  options: Pick<TreeNode, 'idPath' | 'type' | 'shortNameIndex'> & Partial<TreeNode>,
+): TreeNode {
   const {
     idPath,
     srcPath,
@@ -112,8 +131,8 @@ function createNode(options) {
     children: [],
     parent: null,
     idPath,
-    srcPath,
-    component,
+    srcPath: srcPath!,
+    component: component!,
     type,
     shortNameIndex,
     size,
@@ -130,6 +149,21 @@ function createNode(options) {
  * the `rootNode` property.
  */
 class TreeBuilder {
+  private _getPath: (fileEntry: FileEntry) => string;
+  private _filterTest: Filter;
+  private _highlightTest: Filter;
+  private _sep: string;
+  private _meta: Meta;
+  rootNode: TreeNode;
+
+  /** Cache for directory nodes */
+  private _parents = new Map<string, TreeNode>();
+  /**
+   * Regex used to split the `idPath` when finding nodes. Equivalent to
+   * one of: "/" or `sep`
+   */
+  _splitter: RegExp;
+
   /**
    * @param {object} options
    * @param {(fileEntry: FileEntry) => string} options.getPath Called to get the
@@ -142,7 +176,13 @@ class TreeBuilder {
    * @param {string} options.sep Path seperator used to find parent names.
    * @param {Meta} options.meta Metadata associated with this tree.
    */
-  constructor(options) {
+  constructor(options: {
+    getPath: (fileEntry: FileEntry) => string;
+    filterTest: Filter;
+    highlightTest: Filter;
+    sep: string;
+    meta: Meta;
+  }) {
     this._getPath = options.getPath;
     this._filterTest = options.filterTest;
     this._highlightTest = options.highlightTest;
@@ -155,8 +195,6 @@ class TreeBuilder {
       shortNameIndex: 0,
       type: this._containerType(this._sep),
     });
-    /** @type {Map<string, TreeNode>} Cache for directory nodes */
-    this._parents = new Map();
 
     /**
      * Regex used to split the `idPath` when finding nodes. Equivalent to
@@ -171,9 +209,9 @@ class TreeBuilder {
    * @param {TreeNode} node Child node.
    * @param {TreeNode} directParent New parent node.
    */
-  _attachToParent(node, directParent) {
+  private _attachToParent(node: TreeNode, directParent: TreeNode) {
     // Link the nodes together
-    directParent.children.push(node);
+    directParent.children!.push(node);
     node.parent = directParent;
 
     const additionalSize = node.size;
@@ -222,7 +260,7 @@ class TreeBuilder {
    * into containers, based on the class of the dex methods.
    * @param {TreeNode} node
    */
-  _joinDexMethodClasses(node) {
+  _joinDexMethodClasses(node: TreeNode) {
     const isFileNode = node.type[0] === _CONTAINER_TYPES.FILE;
     const hasDex = node.childStats[_DEX_SYMBOL_TYPE] || node.childStats[_DEX_METHOD_SYMBOL_TYPE];
     if (!isFileNode || !hasDex || !node.children) return node;
@@ -307,17 +345,17 @@ class TreeBuilder {
    * @param {number} depth How many levels of children to keep.
    * @returns {TreeNode}
    */
-  formatNode(node, depth = 1) {
+  formatNode(node: TreeNode, depth = 1): TreeNode {
     const childDepth = depth - 1;
     // `null` represents that the children have not been loaded yet
     let children = null;
-    if (depth > 0 || node.children.length <= 1) {
+    if (depth > 0 || node.children!.length <= 1) {
       // If depth is larger than 0, include the children.
       // If there are 0 children, include the empty array to indicate the node
       // is a leaf.
       // If there is 1 child, include it so the UI doesn't need to make a
       // roundtrip in order to expand the chain.
-      children = node.children.map(n => this.formatNode(n, childDepth)).sort(_compareFunc);
+      children = node.children!.map(n => this.formatNode(n, childDepth)).sort(_compareFunc);
     }
 
     return this._joinDexMethodClasses(
@@ -333,7 +371,7 @@ class TreeBuilder {
    * @param {string} childIdPath
    * @private
    */
-  _containerType(childIdPath) {
+  private _containerType(childIdPath: string) {
     const useAlternateType =
       childIdPath.lastIndexOf(this._sep) > childIdPath.lastIndexOf(_PATH_SEP);
     if (useAlternateType) {
@@ -350,7 +388,7 @@ class TreeBuilder {
    * @param {TreeNode} childNode
    * @private
    */
-  _getOrMakeParentNode(childNode) {
+  private _getOrMakeParentNode(childNode: TreeNode) {
     // Get idPath of this node's parent.
     let parentPath;
     if (childNode.idPath === '') parentPath = _NO_NAME;
@@ -383,14 +421,14 @@ class TreeBuilder {
   }
 
   /**
-   * Iterate through every file node generated by supersize. Each node includes
+   * Iterate through every file node generated by size report. Each node includes
    * symbols that belong to that file. Create a tree node for each file with
    * tree nodes for that file's symbols attached. Afterwards attach that node to
    * its parent directory node, or create it if missing.
    * @param {FileEntry} fileEntry File entry from data file
    * @param {boolean} diffMode Whether diff mode is in effect.
    */
-  addFileEntry(fileEntry, diffMode) {
+  addFileEntry(fileEntry: FileEntry, diffMode: boolean) {
     const idPath = this._getPath(fileEntry);
     const srcPath = getSourcePath(fileEntry);
     const component = getComponent(this._meta, fileEntry);
@@ -407,7 +445,7 @@ class TreeBuilder {
     for (const symbol of fileEntry[_KEYS.FILE_SYMBOLS]) {
       const size = symbol[_KEYS.SIZE];
       const type = symbol[_KEYS.TYPE];
-      const count = _KEYS.COUNT in symbol ? symbol[_KEYS.COUNT] : defaultCount;
+      const count = (_KEYS.COUNT in symbol ? symbol[_KEYS.COUNT] : defaultCount) as number;
       const flags = _KEYS.FLAGS in symbol ? symbol[_KEYS.FLAGS] : 0;
       const numAliases = _KEYS.NUM_ALIASES in symbol ? symbol[_KEYS.NUM_ALIASES] : 1;
 
@@ -438,7 +476,7 @@ class TreeBuilder {
       }
     }
     // unless we filtered out every symbol belonging to this file,
-    if (fileNode.children.length > 0) {
+    if (fileNode.children!.length > 0) {
       // build all ancestor nodes for this file
       let orphanNode = fileNode;
       while (orphanNode.parent == null && orphanNode !== this.rootNode) {
@@ -464,7 +502,7 @@ class TreeBuilder {
    * @param {TreeNode} node
    * @returns {TreeNode | null}
    */
-  _find(idPathList, node) {
+  _find(idPathList: string[], node: TreeNode): TreeNode | null {
     if (node == null) {
       return null;
     } else if (idPathList.length === 0) {
@@ -473,7 +511,7 @@ class TreeBuilder {
     }
 
     const [shortNameToFind] = idPathList;
-    const child = node.children.find(n => shortName(n) === shortNameToFind);
+    const child = node.children!.find(n => shortName(n) === shortNameToFind)!;
 
     return this._find(idPathList.slice(1), child);
   }
@@ -482,7 +520,7 @@ class TreeBuilder {
    * Find a node with a given `idPath` by traversing the tree.
    * @param {string} idPath
    */
-  find(idPath) {
+  find(idPath: string) {
     // If `idPath` is the root's ID, return the root
     if (idPath === this.rootNode.idPath) {
       return this.rootNode;
@@ -510,135 +548,18 @@ class TreeBuilder {
 }
 
 /**
- * Wrapper around fetch for requesting the same resource multiple times.
- */
-class DataFetcher {
-  constructor(input) {
-    /** @type {AbortController | null} */
-    this._controller = null;
-    this.setInput(input);
-  }
-
-  /**
-   * Sets the input that describes what will be fetched. Also clears the cache.
-   * @param {string | Request} input URL to the resource you want to fetch.
-   */
-  setInput(input) {
-    if (typeof this._input === 'string' && this._input.startsWith('blob:')) {
-      // Revoke the previous Blob url to prevent memory leaks
-      URL.revokeObjectURL(this._input);
-    }
-
-    /** @type {Uint8Array | null} */
-    this._cache = null;
-    this._input = input;
-  }
-
-  /**
-   * Starts a new request and aborts the previous one.
-   * @param {string | Request} url
-   */
-  async fetch(url) {
-    if (this._controller) this._controller.abort();
-    this._controller = new AbortController();
-    const headers = new Headers();
-    headers.append('cache-control', 'no-cache');
-    return fetch(url, {
-      headers,
-      credentials: 'same-origin',
-      signal: this._controller.signal,
-    });
-  }
-
-  /**
-   * Yields binary chunks as Uint8Arrays. After a complete run, the bytes are
-   * cached and future calls will yield the cached Uint8Array instead.
-   */
-  async *arrayBufferStream() {
-    if (this._cache) {
-      yield this._cache;
-      return;
-    }
-
-    const response = await this.fetch(this._input);
-    let result;
-    // Use streams, if supported, so that we can show in-progress data instead
-    // of waiting for the entire data file to download. The file can be >100 MB,
-    // so streams ensure slow connections still see some data.
-    if (response.body) {
-      const reader = response.body.getReader();
-
-      /** @type {Uint8Array[]} Store received bytes to merge later */
-      let buffer = [];
-      /** Total size of received bytes */
-      let byteSize = 0;
-      while (true) {
-        // Read values from the stream
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = new Uint8Array(value, 0, value.length);
-        yield chunk;
-        buffer.push(chunk);
-        byteSize += chunk.length;
-      }
-
-      // We just cache a single typed array to save some memory and make future
-      // runs consistent with the no streams mode.
-      result = new Uint8Array(byteSize);
-      let i = 0;
-      for (const chunk of buffer) {
-        result.set(chunk, i);
-        i += chunk.length;
-      }
-    } else {
-      // In-memory version for browsers without stream support
-      result = new Uint8Array(await response.arrayBuffer());
-      yield result;
-    }
-
-    this._cache = result;
-  }
-
-  /**
-   * Transforms a binary stream into a newline delimited JSON (.ndjson) stream.
-   * Each yielded value corresponds to one line in the stream.
-   * @returns {AsyncIterable<Meta | FileEntry>}
-   */
-  async *newlineDelimtedJsonStream() {
-    const decoder = new TextDecoder();
-    const decoderArgs = { stream: true };
-    let textBuffer = '';
-
-    for await (const bytes of this.arrayBufferStream()) {
-      if (this._controller.signal.aborted) {
-        throw new DOMException('Request was aborted', 'AbortError');
-      }
-
-      textBuffer += decoder.decode(bytes, decoderArgs);
-      const lines = textBuffer.split('\n');
-      [textBuffer] = lines.splice(lines.length - 1, 1);
-
-      for (const line of lines) {
-        yield JSON.parse(line);
-      }
-    }
-  }
-}
-
-/**
  * Parse the options represented as a query string, into an object.
  * Includes checks for valid values.
  * @param {string} options Query string
  */
-function parseOptions(options) {
+function parseOptions(options: string) {
   const params = new URLSearchParams(options);
 
   const url = params.get('load_url');
   const groupBy = params.get('group_by') || 'source_path';
   const methodCountMode = params.has('method_count');
   const filterGeneratedFiles = params.has('generated_filter');
-  const flagToHighlight = _NAMES_TO_FLAGS[params.get('highlight')];
+  const flagToHighlight = _NAMES_TO_FLAGS[params.get('highlight') as keyof typeof _NAMES_TO_FLAGS];
 
   let minSymbolSize = Number(params.get('min_size'));
   if (Number.isNaN(minSymbolSize)) {
@@ -648,8 +569,7 @@ function parseOptions(options) {
   const includeRegex = params.get('include');
   const excludeRegex = params.get('exclude');
 
-  /** @type {Set<string>} */
-  let typeFilter;
+  let typeFilter: Set<string>;
   if (methodCountMode) {
     typeFilter = new Set(_DEX_METHOD_SYMBOL_TYPE);
   } else {
@@ -661,10 +581,10 @@ function parseOptions(options) {
   }
 
   /**
-   * @type {Array<(symbolNode: TreeNode) => boolean>} List of functions that
+   * List of functions that
    * check each symbol. If any returns false, the symbol will not be used.
    */
-  const filters = [];
+  const filters: Filter[] = [];
 
   // Ensure symbol size is past the minimum
   if (minSymbolSize > 0) {
@@ -703,12 +623,11 @@ function parseOptions(options) {
    * Check that a symbol node passes all the filters in the filters array.
    * @param {TreeNode} symbolNode
    */
-  function filterTest(symbolNode) {
+  function filterTest(symbolNode: TreeNode) {
     return filters.every(fn => fn(symbolNode));
   }
 
-  /** @type {(symbolNode: TreeNode) => boolean} */
-  let highlightTest;
+  let highlightTest: Filter;
   if (flagToHighlight) {
     highlightTest = symbolNode => hasFlag(flagToHighlight, symbolNode);
   } else {
@@ -718,9 +637,8 @@ function parseOptions(options) {
   return { groupBy, filterTest, highlightTest, url };
 }
 
-/** @type {TreeBuilder | null} */
-let builder = null;
-const fetcher = new DataFetcher('data.ndjson');
+let builder: TreeBuilder | null = null;
+const fetcher = new TravisFetcher('GoogleChromeLabs/travis-size-report');
 
 /**
  * Assemble a tree when this worker receives a message.
@@ -732,14 +650,18 @@ const fetcher = new DataFetcher('data.ndjson');
  * @param {(msg: TreeProgress) => void} onProgress
  * @returns {Promise<TreeProgress>}
  */
-async function buildTree(groupBy, filterTest, highlightTest, onProgress) {
+async function buildTree(
+  groupBy: string,
+  filterTest: Filter,
+  highlightTest: Filter,
+  onProgress: (msg: TreeProgress) => void,
+) {
   /** @type {Meta | null} Object from the first line of the data file */
-  let meta = null;
+  let meta: Meta | null = null;
 
-  /** @type {{ [gropyBy: string]: (fileEntry: FileEntry) => string }} */
-  const getPathMap = {
+  const getPathMap: { [gropyBy: string]: (fileEntry: FileEntry) => string } = {
     component(fileEntry) {
-      const component = getComponent(meta, fileEntry);
+      const component = getComponent(meta!, fileEntry);
       const path = getSourcePath(fileEntry);
       return `${component || '(No component)'}>${path}`;
     },
@@ -749,23 +671,22 @@ async function buildTree(groupBy, filterTest, highlightTest, onProgress) {
   /**
    * Creates data to post to the UI thread. Defaults will be used for the root
    * and percent values if not specified.
-   * @param {{root?:TreeNode,percent?:number,error?:Error}} data Default data
-   * values to post.
+   * @param data Default data values to post.
    */
-  function createProgressMessage(data = {}) {
+  function createProgressMessage(data: { root?: TreeNode; percent?: number; error?: Error } = {}) {
     let { percent } = data;
     if (percent == null) {
       if (meta == null) {
         percent = 0;
       } else {
-        percent = Math.max(builder.rootNode.size / meta.total, 0.1);
+        percent = Math.max(builder!.rootNode.size / meta.total, 0.1);
       }
     }
 
-    const message = {
-      root: builder.formatNode(data.root || builder.rootNode),
+    const message: TreeProgress = {
+      root: builder!.formatNode(data.root || builder!.rootNode),
       percent,
-      diffMode: meta && meta.diff_mode,
+      diffMode: Boolean(meta && meta.diff_mode),
     };
     if (data.error) {
       message.error = data.error.message;
@@ -779,7 +700,7 @@ async function buildTree(groupBy, filterTest, highlightTest, onProgress) {
    */
   function postToUi() {
     const message = createProgressMessage();
-    message.id = 0;
+    (message as any).id = 0;
     onProgress(message);
   }
 
@@ -790,7 +711,7 @@ async function buildTree(groupBy, filterTest, highlightTest, onProgress) {
     for await (const dataObj of fetcher.newlineDelimtedJsonStream()) {
       if (meta == null) {
         // First line of data is used to store meta information.
-        meta = /** @type {Meta} */ (dataObj);
+        meta = dataObj as Meta;
         diffMode = meta.diff_mode;
 
         builder = new TreeBuilder({
@@ -803,7 +724,7 @@ async function buildTree(groupBy, filterTest, highlightTest, onProgress) {
 
         postToUi();
       } else {
-        builder.addFileEntry(/** @type {FileEntry} */ (dataObj), diffMode);
+        builder!.addFileEntry(dataObj as FileEntry, diffMode!);
         const currentTime = Date.now();
         if (currentTime - lastBatchSent > 500) {
           postToUi();
@@ -814,7 +735,7 @@ async function buildTree(groupBy, filterTest, highlightTest, onProgress) {
     }
 
     return createProgressMessage({
-      root: builder.build(),
+      root: builder!.build(),
       percent: 1,
     });
   } catch (error) {
@@ -828,13 +749,14 @@ async function buildTree(groupBy, filterTest, highlightTest, onProgress) {
 }
 
 const actions = {
-  /** @param {{input:string|null,options:string}} param0 */
-  load({ input, options }) {
+  load({ input, options }: { input: string | null; options: string }) {
     const { groupBy, filterTest, highlightTest, url } = parseOptions(options);
-    if (input === 'from-url://' && url) {
-      // Display the data from the `load_url` query parameter
-      console.info('Displaying data from', url);
-      fetcher.setInput(url);
+    if (input === 'from-url://') {
+      if (url) {
+        // Display the data from the `load_url` query parameter
+        console.info('Displaying data from', url);
+        fetcher.setInput(url);
+      }
     } else if (input != null) {
       console.info('Displaying uploaded data');
       fetcher.setInput(input);
@@ -846,9 +768,9 @@ const actions = {
     });
   },
   /** @param {string} path */
-  async open(path) {
+  async open(path: string) {
     if (!builder) throw new Error('Called open before load');
-    const node = builder.find(path);
+    const node = builder.find(path)!;
     return builder.formatNode(node);
   },
 };
@@ -860,7 +782,7 @@ const actions = {
  * @param {string} action Action type, corresponding to a key in `actions.`
  * @param {any} data Data to supply to the action function.
  */
-async function runAction(id, action, data) {
+async function runAction(id: number, action: keyof typeof actions, data: any) {
   try {
     const result = await actions[action](data);
     // @ts-ignore

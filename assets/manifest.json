@@ -1,7 +1,7 @@
 {
-  "short_name": "Super Size",
-  "name": "Super Size Tiger View",
-  "description": "View interactive size breakdowns from Chrome",
+  "short_name": "Size Report",
+  "name": "Travis Size Report",
+  "description": "View interactive size breakdowns",
   "icons": [
     {
       "src": "favicon.ico",
@@ -14,7 +14,7 @@
     }
   ],
   "lang": "en",
-  "start_url": "viewer.html",
+  "start_url": "index.html",
   "background_color": "#fff",
   "display": "standalone",
   "scope": "./",
