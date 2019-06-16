@@ -12,6 +12,7 @@ const escape_string_regexp_1 = __importDefault(require("escape-string-regexp"));
 const node_fetch_1 = __importDefault(require("node-fetch"));
 const chalk_1 = __importDefault(require("chalk"));
 const pretty_bytes_1 = __importDefault(require("pretty-bytes"));
+const find_renamed_1 = require("./find-renamed");
 const globP = util_1.promisify(glob_1.default);
 const statP = util_1.promisify(fs_1.stat);
 // Travis reports it doesn't support colour. IT IS WRONG.
@@ -154,6 +155,8 @@ function outputChanges(changes) {
 async function sizeReport(user, repo, files, { branch = 'master', findRenamed } = {}) {
     if (typeof files === 'string')
         files = [files];
+    if (typeof findRenamed === 'string')
+        findRenamed = find_renamed_1.buildFindRenamedFunc(findRenamed);
     // Get target files
     const filePaths = [];
     for (const glob of files) {

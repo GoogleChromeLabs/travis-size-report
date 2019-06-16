@@ -11,14 +11,17 @@ const argv = minimist_1.default(process.argv.slice(2), {
     string: ['branch'],
     alias: { c: 'config' },
 });
+// Read arguments from command line
 const branch = argv.branch;
 const configFile = argv.config;
 const repo = argv._[0];
 const glob = argv._[1];
 let config = {};
+// Read arguments from config file
 if (configFile) {
     config = require(path_1.default.join(process.cwd(), configFile === true ? 'sizereport.config.js' : configFile));
 }
+// Override config file with command line arguments
 if (repo)
     config.repo = repo;
 if (glob)
