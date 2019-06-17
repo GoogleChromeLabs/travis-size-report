@@ -27,46 +27,33 @@ module.exports = {
   repo: 'GoogleChromeLabs/travis-size-report',
   path: 'dist/**/*',
   branch: 'master',
-  findRenamed(path, newPaths) {
-    // …
-  },
+  findRenamed: '[name]-[hash][extname]',
 };
 ```
 
 - `repo` (required) - The username/repo-name.
 - `path` (required) - The glob (or array of globs) of files to include in the report.
 - `branch` (optional, default: 'master') - The branch to check against.
-- `findRenamed(path, newPaths)` (optional) - See below
+- `findRenamed` (optional) - See below
 
-#### `findRenamed(path, newPaths)`
+#### `findRenamed`
 
-By default, a renamed file will look like one file deleted and another created. By writing a `findRenamed` callback, you can tell travis-size-report that a file was renamed.
+By default, a renamed file will look like one file deleted and another created. However, you can help travis-size-report identify this as a renamed file.
 
-- `path` - A path that existed in the previous build, but doesn't exist in the new build.
+`findRenamed` can be a string, or a callback. The string form can have the following placeholders:
+
+- `[name]` - Any character (`.+` in Regex).
+- `[hash]` - A typical version hash (`[a-f0-9]+` in Regex).
+- `[extname]` - The extension of the file (`\.\w+` in Regex).
+
+If you provide `'[name]-[hash][extname]'` as the value to `findRenamed`, it will consider `foo-a349fb.js` and `foo-cd6ef2.js` to be the same file, renamed.
+
+The callback form is `(oldPath, newPaths) => matchingNewPath`.
+
+- `oldPath` - A path that existed in the previous build, but doesn't exist in the new build.
 - `newPaths` - Paths that appear in the new build, but didn't appear in the previous build.
 
-Match up `path` to one of the `newPaths` by returning the matching `newPath`. Or return undefined if `path` was deleted rather than renamed.
-
-For example, if my files looked like `name.hash.extension` I would consider `main.abcde.js` and `main.12345.js` to be the same file, renamed. I could match them up like this:
-
-```js
-const minimatch = require('minimatch');
-const { parse } = require('path');
-
-module.exports = {
-  repo: 'GoogleChromeLabs/travis-size-report',
-  path: 'dist/**/*',
-  findRenamed(path, newPaths) {
-    const parsedPath = parse(path);
-    // Split the file into name, hash, and the rest
-    const re = /^([^.]+)\.([^.]+)(\..+)$/.exec(parsedPath.base);
-    if (!re) return;
-    const [base, name, hash, extension] = re;
-    const toMatch = `${parsedPath.dir}/${name}.*.${extension}`;
-    return newPaths.find(path => minimatch(path, toMatch));
-  },
-};
-```
+Match up `oldPath` to one of the `newPaths` by returning the matching `newPath`. Or return undefined if `oldPath` was deleted rather than renamed.
 
 ### Command line
 
