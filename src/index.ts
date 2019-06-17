@@ -213,7 +213,7 @@ export interface SizeReportOptions {
    *
    * This can be async, returning a promise for a string or undefined.
    */
-  findRenamed?: string | import('./find-renamed').FindRenamed;
+  findRenamed?: string | FindRenamed;
 }
 
 export default async function sizeReport(
