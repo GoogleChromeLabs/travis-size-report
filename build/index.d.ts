@@ -1,8 +1,3 @@
-export declare type FindRenamed = (
-/** Path of a file that's missing in the latest build */
-filePath: string, 
-/** Paths of files that are new in the latest build */
-newFiles: string[]) => string | void | Promise<void> | Promise<string>;
 export interface SizeReportOptions {
     /** Branch to compare to. Defaults to 'master' */
     branch?: string;
@@ -15,6 +10,6 @@ export interface SizeReportOptions {
      *
      * This can be async, returning a promise for a string or undefined.
      */
-    findRenamed?: FindRenamed;
+    findRenamed?: string | import('./find-renamed').FindRenamed;
 }
-export default function sizeReport(user: string, repo: string, files: string | string[], { branch, findRenamed }?: SizeReportOptions): Promise<void>;
+export default function sizeReport(user: string, repo: string, files: string | readonly string[], { branch, findRenamed }?: SizeReportOptions): Promise<void>;

@@ -8,6 +8,7 @@ import escapeRE from 'escape-string-regexp';
 import fetch, { Response } from 'node-fetch';
 import chalk from 'chalk';
 import prettyBytes from 'pretty-bytes';
+import { buildFindRenamedFunc, FindRenamed } from './find-renamed';
 
 const globP = promisify(glob);
 const statP = promisify(stat);
@@ -98,7 +99,7 @@ interface BuildChanges {
 async function getChanges(
   previousBuildInfo: FileData[],
   buildInfo: FileData[],
-  findRenamed: SizeReportOptions['findRenamed'],
+  findRenamed?: FindRenamed,
 ): Promise<BuildChanges> {
   const deletedItems: FileData[] = [];
   const changedItems = new Map<FileData, FileData>();
@@ -200,13 +201,6 @@ function outputChanges(changes: BuildChanges) {
   }
 }
 
-export type FindRenamed = (
-  /** Path of a file that's missing in the latest build */
-  filePath: string,
-  /** Paths of files that are new in the latest build */
-  newFiles: string[],
-) => string | void | Promise<void> | Promise<string>;
-
 export interface SizeReportOptions {
   /** Branch to compare to. Defaults to 'master' */
   branch?: string;
@@ -219,16 +213,17 @@ export interface SizeReportOptions {
    *
    * This can be async, returning a promise for a string or undefined.
    */
-  findRenamed?: FindRenamed;
+  findRenamed?: string | import('./find-renamed').FindRenamed;
 }
 
 export default async function sizeReport(
   user: string,
   repo: string,
-  files: string | string[],
+  files: string | readonly string[],
   { branch = 'master', findRenamed }: SizeReportOptions = {},
 ): Promise<void> {
   if (typeof files === 'string') files = [files];
+  if (typeof findRenamed === 'string') findRenamed = buildFindRenamedFunc(findRenamed);
 
   // Get target files
   const filePaths = [];
