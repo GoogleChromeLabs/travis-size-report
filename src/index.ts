@@ -89,7 +89,7 @@ function fetchTravisBuildInfo(user: string, repo: string, branch: string) {
     'branch.name': branch,
     state: 'passed',
     limit: '1',
-    event_type: 'pull_request',
+    event_type: 'push',
   }).then(r => r.json());
 }
 
