@@ -6,16 +6,24 @@ import glob from 'glob';
 import gzipSize from 'gzip-size';
 import escapeRE from 'escape-string-regexp';
 import fetch, { Response } from 'node-fetch';
-import chalk from 'chalk';
 import prettyBytes from 'pretty-bytes';
 import { buildFindRenamedFunc, FindRenamed } from './find-renamed';
 
+const { TRAVIS_TOKEN, GITHUB_TOKEN, TRAVIS_PULL_REQUEST } = process.env;
+
+console.log('see if env vars are given properly', {
+  TRAVIS_TOKEN,
+  GITHUB_TOKEN,
+  TRAVIS_PULL_REQUEST,
+});
+
 const globP = promisify(glob);
 const statP = promisify(stat);
-// Travis reports it doesn't support colour. IT IS WRONG.
-const alwaysChalk = new chalk.constructor({ level: 4 });
+
+let ghMdOutput = '';
 
 interface FileData {
+  name: string;
   path: string;
   size: number;
   gzipSize: number;
@@ -30,10 +38,15 @@ const buildSizePrefixRe = new RegExp(`^${escapeRE(buildSizePrefix)}(.+)$`, 'm');
 function pathsToInfoArray(paths: string[]): Promise<FileData[]> {
   return Promise.all(
     paths.map(async path => {
+      const lastSlashIndex = path.lastIndexOf('/');
+      const lastHiphenIndex = path.lastIndexOf('-');
+
+      const name = path.substring(lastSlashIndex + 1, lastHiphenIndex);
       const gzipSizePromise = gzipSize.file(path);
       const statSizePromise = statP(path).then(s => s.size);
 
       return {
+        name,
         path,
         size: await statSizePromise,
         gzipSize: await gzipSizePromise,
@@ -42,15 +55,32 @@ function pathsToInfoArray(paths: string[]): Promise<FileData[]> {
   );
 }
 
+function fetchGitHub(params: any = {}, body: any) {
+  const { user, repo, pr } = params;
+  const url = `https://api.github.com/repos/${user}/${repo}/issues/${pr}/comments`;
+  console.log('url', url);
+  return fetch(url, {
+    method: 'POST',
+    body: JSON.stringify({ body }),
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `token ${GITHUB_TOKEN}`,
+    },
+  });
+}
+
 function fetchTravis(
   path: string,
   searchParams: { [propName: string]: string } = {},
 ): Promise<Response> {
-  const url = new URL(path, 'https://api.travis-ci.org');
+  const url = new URL(path, 'https://api.travis-ci.com');
   url.search = new URLSearchParams(searchParams).toString();
 
   return fetch(url.href, {
-    headers: { 'Travis-API-Version': '3' },
+    headers: {
+      'Travis-API-Version': '3',
+      Authorization: `token ${TRAVIS_TOKEN}`,
+    },
   });
 }
 
@@ -59,7 +89,7 @@ function fetchTravisBuildInfo(user: string, repo: string, branch: string) {
     'branch.name': branch,
     state: 'passed',
     limit: '1',
-    event_type: 'push',
+    event_type: 'pull_request',
   }).then(r => r.json());
 }
 
@@ -152,52 +182,50 @@ async function getChanges(
   return { newItems, deletedItems, changedItems };
 }
 
-function outputChanges(changes: BuildChanges) {
-  // One letter references, so it's easier to get the spacing right.
-  const y = alwaysChalk.yellow;
-  const g = alwaysChalk.green;
-  const r = alwaysChalk.red;
+function output(text: string) {
+  ghMdOutput = ghMdOutput + '\n' + text;
+}
 
+function outputChanges(changes: BuildChanges) {
   if (
     changes.newItems.length === 0 &&
     changes.deletedItems.length === 0 &&
     changes.changedItems.size === 0
   ) {
-    console.log(`  No changes.`);
+    output(`#### :raised_hands:   No changes.`);
   }
 
-  for (const file of changes.newItems) {
-    console.log(`  ${g('ADDED')}   ${file.path} - ${prettyBytes(file.gzipSize)}`);
-  }
-
-  for (const file of changes.deletedItems) {
-    console.log(`  ${r('REMOVED')} ${file.path} - was ${prettyBytes(file.gzipSize)}`);
-  }
-
+  output(`### Changes in existing chunks :pencil2:`);
+  output(`| Chunk | Size Change | Current Size | Status`);
+  output(`| --- | --- | --- | --- |`);
   for (const [oldFile, newFile] of changes.changedItems.entries()) {
     // Changed file.
-    let size;
+    const size = prettyBytes(newFile.gzipSize);
+    let sizeDiff = '0B';
+    let changeEmoji = ':o2:';
 
-    if (oldFile.gzipSize === newFile.gzipSize) {
-      // Just renamed.
-      size = `${prettyBytes(newFile.gzipSize)} -> no change`;
-    } else {
-      const color = newFile.gzipSize > oldFile.gzipSize ? r : g;
-      const sizeDiff = prettyBytes(newFile.gzipSize - oldFile.gzipSize, { signed: true });
-      const relativeDiff = Math.round((newFile.gzipSize / oldFile.gzipSize) * 1000) / 1000;
-
-      size =
-        `${prettyBytes(oldFile.gzipSize)} -> ${prettyBytes(newFile.gzipSize)}` +
-        ' (' +
-        color(`${sizeDiff}, ${relativeDiff}x`) +
-        ')';
+    if (oldFile.gzipSize !== newFile.gzipSize) {
+      sizeDiff = prettyBytes(newFile.gzipSize - oldFile.gzipSize, { signed: true });
+      changeEmoji = newFile.gzipSize > oldFile.gzipSize ? ':arrow_double_up:' : ':arrow_down:';
     }
 
-    console.log(`  ${y('CHANGED')} ${newFile.path} - ${size}`);
+    output(`| ${newFile.name} | **${sizeDiff}** | ${size} | ${changeEmoji}`);
+  }
 
-    if (oldFile.path !== newFile.path) {
-      console.log(`    Renamed from: ${oldFile.path}`);
-    }
+  output(`### New chunks :heavy_plus_sign:`);
+  output(`| Chunk | Size | Status`);
+  output(`| --- | --- | --- |`);
+  for (const file of changes.newItems) {
+    const size = prettyBytes(file.gzipSize);
+    output(`| ${file.name} | **${size}** | :exclamation:`);
+  }
+
+  output(`### Removed chunks :heavy_minus_sign:`);
+  output(`| Chunk | Size | Status`);
+  output(`| --- | --- | --- |`);
+  for (const file of changes.deletedItems) {
+    const size = prettyBytes(file.gzipSize);
+    output(`| ${file.name} | **${size}** | :grey_exclamation:`);
   }
 }
 
@@ -257,4 +285,5 @@ export default async function sizeReport(
 
   const buildChanges = await getChanges(previousBuildInfo, buildInfo, findRenamed);
   outputChanges(buildChanges);
+  await fetchGitHub({ user, repo, pr: TRAVIS_PULL_REQUEST }, ghMdOutput);
 }
