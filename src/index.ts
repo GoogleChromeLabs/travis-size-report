@@ -196,7 +196,7 @@ function outputChanges(changes: BuildChanges) {
   }
 
   output(`### Changes in existing chunks :pencil2:`);
-  output(`| Chunk | Size Change | Current Size | Status`);
+  output(`| Size Change | Current Size | Status | Chunk`);
   output(`| --- | --- | --- | --- |`);
   for (const [oldFile, newFile] of changes.changedItems.entries()) {
     // Changed file.
@@ -209,23 +209,23 @@ function outputChanges(changes: BuildChanges) {
       changeEmoji = newFile.gzipSize > oldFile.gzipSize ? ':arrow_double_up:' : ':arrow_down:';
     }
 
-    output(`| ${newFile.name} | **${sizeDiff}** | ${size} | ${changeEmoji}`);
+    output(`| **${sizeDiff}** | ${size} | ${changeEmoji} | ${newFile.name}`);
   }
 
   output(`### New chunks :heavy_plus_sign:`);
-  output(`| Chunk | Size | Status`);
+  output(`Size | Status | Chunk`);
   output(`| --- | --- | --- |`);
   for (const file of changes.newItems) {
     const size = prettyBytes(file.gzipSize);
-    output(`| ${file.name} | **${size}** | :exclamation:`);
+    output(`| **${size}** | :exclamation: | ${file.name}`);
   }
 
   output(`### Removed chunks :heavy_minus_sign:`);
-  output(`| Chunk | Size | Status`);
+  output(`Size | Status | Chunk`);
   output(`| --- | --- | --- |`);
   for (const file of changes.deletedItems) {
     const size = prettyBytes(file.gzipSize);
-    output(`| ${file.name} | **${size}** | :grey_exclamation:`);
+    output(`| **${size}** | :grey_exclamation: | ${file.name}`);
   }
 }
 

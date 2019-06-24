@@ -13,7 +13,11 @@ const node_fetch_1 = __importDefault(require("node-fetch"));
 const pretty_bytes_1 = __importDefault(require("pretty-bytes"));
 const find_renamed_1 = require("./find-renamed");
 const { TRAVIS_TOKEN, GITHUB_TOKEN, TRAVIS_PULL_REQUEST } = process.env;
-console.log('see if env vars are given properly', { TRAVIS_TOKEN, GITHUB_TOKEN, TRAVIS_PULL_REQUEST });
+console.log('see if env vars are given properly', {
+    TRAVIS_TOKEN,
+    GITHUB_TOKEN,
+    TRAVIS_PULL_REQUEST,
+});
 const globP = util_1.promisify(glob_1.default);
 const statP = util_1.promisify(fs_1.stat);
 let ghMdOutput = '';
@@ -46,7 +50,7 @@ function fetchGitHub(params = {}, body) {
         body: JSON.stringify({ body }),
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `token ${GITHUB_TOKEN}`
+            Authorization: `token ${GITHUB_TOKEN}`,
         },
     });
 }
@@ -56,7 +60,7 @@ function fetchTravis(path, searchParams = {}) {
     return node_fetch_1.default(url.href, {
         headers: {
             'Travis-API-Version': '3',
-            'Authorization': `token ${TRAVIS_TOKEN}`
+            Authorization: `token ${TRAVIS_TOKEN}`,
         },
     });
 }
@@ -65,7 +69,7 @@ function fetchTravisBuildInfo(user, repo, branch) {
         'branch.name': branch,
         state: 'passed',
         limit: '1',
-        event_type: 'pull_request',
+        event_type: 'push',
     }).then(r => r.json());
 }
 function fetchTravisText(path) {
@@ -143,7 +147,7 @@ function outputChanges(changes) {
         output(`#### :raised_hands:   No changes.`);
     }
     output(`### Changes in existing chunks :pencil2:`);
-    output(`| Chunk | Size Change | Current Size | Status`);
+    output(`| Size Change | Current Size | Status | Chunk`);
     output(`| --- | --- | --- | --- |`);
     for (const [oldFile, newFile] of changes.changedItems.entries()) {
         // Changed file.
@@ -154,21 +158,21 @@ function outputChanges(changes) {
             sizeDiff = pretty_bytes_1.default(newFile.gzipSize - oldFile.gzipSize, { signed: true });
             changeEmoji = newFile.gzipSize > oldFile.gzipSize ? ':arrow_double_up:' : ':arrow_down:';
         }
-        output(`| ${newFile.name} | **${sizeDiff}** | ${size} | ${changeEmoji}`);
+        output(`| **${sizeDiff}** | ${size} | ${changeEmoji} | ${newFile.name}`);
     }
     output(`### New chunks :heavy_plus_sign:`);
-    output(`| Chunk | Size | Status`);
+    output(`Size | Status | Chunk`);
     output(`| --- | --- | --- |`);
     for (const file of changes.newItems) {
         const size = pretty_bytes_1.default(file.gzipSize);
-        output(`| ${file.name} | **${size}** | :exclamation:`);
+        output(`| **${size}** | :exclamation: | ${file.name}`);
     }
     output(`### Removed chunks :heavy_minus_sign:`);
-    output(`| Chunk | Size | Status`);
+    output(`Size | Status | Chunk`);
     output(`| --- | --- | --- |`);
     for (const file of changes.deletedItems) {
         const size = pretty_bytes_1.default(file.gzipSize);
-        output(`| ${file.name} | **${size}** | :grey_exclamation:`);
+        output(`| **${size}** | :grey_exclamation: | ${file.name}`);
     }
 }
 async function sizeReport(user, repo, files, { branch = 'master', findRenamed } = {}) {
