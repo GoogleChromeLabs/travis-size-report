@@ -32,6 +32,10 @@ interface FileData {
 const buildSizePrefix = '=== BUILD SIZES: ';
 const buildSizePrefixRe = new RegExp(`^${escapeRE(buildSizePrefix)}(.+)$`, 'm');
 
+function escapeTilde(str: string) {
+  return str.replace(/\~/g, '\\~');
+}
+
 /**
  * Recursively-read a directory and turn it into an array of FileDatas
  */
@@ -41,7 +45,7 @@ function pathsToInfoArray(paths: string[]): Promise<FileData[]> {
       const lastSlashIndex = path.lastIndexOf('/');
       const lastHiphenIndex = path.lastIndexOf('-');
 
-      const name = path.substring(lastSlashIndex + 1, lastHiphenIndex);
+      const name = escapeTilde(path.substring(lastSlashIndex + 1, lastHiphenIndex));
       const gzipSizePromise = gzipSize.file(path);
       const statSizePromise = statP(path).then(s => s.size);
 

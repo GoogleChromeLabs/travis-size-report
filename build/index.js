@@ -23,6 +23,9 @@ const statP = util_1.promisify(fs_1.stat);
 let ghMdOutput = '';
 const buildSizePrefix = '=== BUILD SIZES: ';
 const buildSizePrefixRe = new RegExp(`^${escape_string_regexp_1.default(buildSizePrefix)}(.+)$`, 'm');
+function escapeTilde(str) {
+    return str.replace(/\~/g, '\\~');
+}
 /**
  * Recursively-read a directory and turn it into an array of FileDatas
  */
@@ -30,7 +33,7 @@ function pathsToInfoArray(paths) {
     return Promise.all(paths.map(async (path) => {
         const lastSlashIndex = path.lastIndexOf('/');
         const lastHiphenIndex = path.lastIndexOf('-');
-        const name = path.substring(lastSlashIndex + 1, lastHiphenIndex);
+        const name = escapeTilde(path.substring(lastSlashIndex + 1, lastHiphenIndex));
         const gzipSizePromise = gzip_size_1.default.file(path);
         const statSizePromise = statP(path).then(s => s.size);
         return {
