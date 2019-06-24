@@ -152,16 +152,37 @@ function outputChanges(changes) {
     output(`### Changes in existing chunks :pencil2:`);
     output(`| Size Change | Current Size | Status | Chunk`);
     output(`| --- | --- | :---: | :--- |`);
+    const increasedChunks = [];
+    const decreasedChunks = [];
     for (const [oldFile, newFile] of changes.changedItems.entries()) {
         // Changed file.
         const size = pretty_bytes_1.default(newFile.gzipSize);
-        let sizeDiff = '0B';
-        let changeEmoji = ':o2:';
-        if (oldFile.gzipSize !== newFile.gzipSize) {
-            sizeDiff = pretty_bytes_1.default(newFile.gzipSize - oldFile.gzipSize, { signed: true });
-            changeEmoji = newFile.gzipSize > oldFile.gzipSize ? ':arrow_double_up:' : ':arrow_down:';
+        const bytesDiff = newFile.gzipSize - oldFile.gzipSize;
+        const sizeDiff = pretty_bytes_1.default(bytesDiff, { signed: true });
+        const changeEmoji = newFile.gzipSize > oldFile.gzipSize ? ':arrow_double_up:' : ':arrow_down:';
+        const chunkData = {
+            sizeDiff,
+            size,
+            bytesDiff,
+            changeEmoji,
+            name: newFile.name,
+        };
+        if (bytesDiff > 100) {
+            increasedChunks.push(chunkData);
         }
-        output(`| **${sizeDiff}** | ${size} | ${changeEmoji} | ${newFile.name}`);
+        if (bytesDiff < -100) {
+            decreasedChunks.push(chunkData);
+        }
+    }
+    increasedChunks.sort((a, b) => b.bytesDiff - a.bytesDiff);
+    decreasedChunks.sort((a, b) => a.bytesDiff - b.bytesDiff);
+    for (const chunk of increasedChunks) {
+        const { sizeDiff, size, changeEmoji, name } = chunk;
+        output(`| **${sizeDiff}** | ${size} | ${changeEmoji} | ${name}`);
+    }
+    for (const chunk of decreasedChunks) {
+        const { sizeDiff, size, changeEmoji, name } = chunk;
+        output(`| **${sizeDiff}** | ${size} | ${changeEmoji} | ${name}`);
     }
     output(`### New chunks :heavy_plus_sign:`);
     output(`Size | Status | Chunk`);
