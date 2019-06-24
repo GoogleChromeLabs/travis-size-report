@@ -197,7 +197,7 @@ function outputChanges(changes: BuildChanges) {
 
   output(`### Changes in existing chunks :pencil2:`);
   output(`| Size Change | Current Size | Status | Chunk`);
-  output(`| --- | --- | --- | --- |`);
+  output(`| --- | --- | :---: | :--- |`);
   for (const [oldFile, newFile] of changes.changedItems.entries()) {
     // Changed file.
     const size = prettyBytes(newFile.gzipSize);
@@ -214,7 +214,7 @@ function outputChanges(changes: BuildChanges) {
 
   output(`### New chunks :heavy_plus_sign:`);
   output(`Size | Status | Chunk`);
-  output(`| --- | --- | --- |`);
+  output(`| --- | :---: | :--- |`);
   for (const file of changes.newItems) {
     const size = prettyBytes(file.gzipSize);
     output(`| **${size}** | :exclamation: | ${file.name}`);
@@ -222,7 +222,7 @@ function outputChanges(changes: BuildChanges) {
 
   output(`### Removed chunks :heavy_minus_sign:`);
   output(`Size | Status | Chunk`);
-  output(`| --- | --- | --- |`);
+  output(`| --- | :---: | :--- |`);
   for (const file of changes.deletedItems) {
     const size = prettyBytes(file.gzipSize);
     output(`| **${size}** | :grey_exclamation: | ${file.name}`);
