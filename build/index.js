@@ -13,7 +13,8 @@ const node_fetch_1 = __importDefault(require("node-fetch"));
 const pretty_bytes_1 = __importDefault(require("pretty-bytes"));
 const find_renamed_1 = require("./find-renamed");
 const { TRAVIS_TOKEN, GITHUB_TOKEN, TRAVIS_PULL_REQUEST } = process.env;
-console.log('see if env vars are given properly', {
+const hiddenDataMarker = 'botsData';
+console.log('size-report tokens', {
     TRAVIS_TOKEN,
     GITHUB_TOKEN,
     TRAVIS_PULL_REQUEST,
@@ -44,15 +45,71 @@ function pathsToInfoArray(paths) {
         };
     }));
 }
-function fetchGitHub(params = {}, body) {
+function getHiddenData(str) {
+    const markerIndex = str.indexOf(hiddenDataMarker);
+    if (markerIndex === -1) {
+        return {
+            sizeReport: {},
+        };
+    }
+    const startIndex = markerIndex + hiddenDataMarker.length;
+    const remainingStr = str.substring(startIndex);
+    const endIndex = remainingStr.indexOf('-->');
+    const jsonString = str.substring(startIndex, startIndex + endIndex);
+    return JSON.parse(jsonString);
+}
+function updateCommentId(params = {}) {
+    const { issueBody, hiddenData, commentId } = params;
+    const markerIndex = issueBody.indexOf(`<!--${hiddenDataMarker}`);
+    const textEndIndex = markerIndex === -1 ? issueBody.length : markerIndex;
+    const text = issueBody.substring(0, textEndIndex).trimRight();
+    hiddenData.sizeReport.lastCommentId = commentId;
+    const hiddenDataString = `${text}\n\n<!--botsData\n${JSON.stringify(hiddenData)}\n-->\n<!-- WARNING: Don't delete the content inside botData -->`;
+    return hiddenDataString;
+}
+function getGitHubIssue(params = {}) {
+    const { user, repo, pr } = params;
+    const url = `https://api.github.com/repos/${user}/${repo}/issues/${pr}`;
+    console.log('getGitHubIssue url', url);
+    return node_fetch_1.default(url, {
+        headers: {
+            Authorization: `token ${GITHUB_TOKEN}`,
+        },
+    });
+}
+function updateGitHubIssue(params = {}, body) {
+    const { user, repo, pr } = params;
+    const url = `https://api.github.com/repos/${user}/${repo}/issues/${pr}`;
+    console.log('updateGitHubIssue url', url);
+    return node_fetch_1.default(url, {
+        method: 'PATCH',
+        body: JSON.stringify({ body }),
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `token ${GITHUB_TOKEN}`,
+        },
+    });
+}
+function commentGitHub(params = {}, body) {
     const { user, repo, pr } = params;
     const url = `https://api.github.com/repos/${user}/${repo}/issues/${pr}/comments`;
-    console.log('url', url);
+    console.log('commentGitHub url', url);
     return node_fetch_1.default(url, {
         method: 'POST',
         body: JSON.stringify({ body }),
         headers: {
             'Content-Type': 'application/json',
+            Authorization: `token ${GITHUB_TOKEN}`,
+        },
+    });
+}
+function deleteCommentGitHub(params = {}) {
+    const { user, repo, commentId } = params;
+    const url = `https://api.github.com/repos/${user}/${repo}/issues/comments/${commentId}`;
+    console.log('delete url', url);
+    return node_fetch_1.default(url, {
+        method: 'DELETE',
+        headers: {
             Authorization: `token ${GITHUB_TOKEN}`,
         },
     });
@@ -210,11 +267,12 @@ async function sizeReport(user, repo, files, { branch = 'master', findRenamed } 
         const matches = await globP(glob, { nodir: true });
         filePaths.push(...matches);
     }
+    const pr = TRAVIS_PULL_REQUEST;
     const uniqueFilePaths = [...new Set(filePaths)];
     // Output the current build sizes for later retrieval.
     const buildInfo = await pathsToInfoArray(uniqueFilePaths);
     console.log(buildSizePrefix + JSON.stringify(buildInfo));
-    console.log('\nBuild change report:');
+    console.log('\nBuild change report sending to GitHub PR as comment:');
     let previousBuildInfo;
     try {
         previousBuildInfo = await getPreviousBuildInfo(user, repo, branch);
@@ -229,6 +287,16 @@ async function sizeReport(user, repo, files, { branch = 'master', findRenamed } 
     }
     const buildChanges = await getChanges(previousBuildInfo, buildInfo, findRenamed);
     outputChanges(buildChanges);
-    await fetchGitHub({ user, repo, pr: TRAVIS_PULL_REQUEST }, ghMdOutput);
+    const issueRes = await getGitHubIssue({ user, repo, pr });
+    const issueData = await issueRes.json();
+    const issueBody = issueData.body;
+    const hiddenData = getHiddenData(issueBody);
+    const { lastCommentId } = hiddenData.sizeReport;
+    const commentRes = await commentGitHub({ user, repo, pr }, ghMdOutput);
+    const commentData = await commentRes.json();
+    const commentId = commentData.id;
+    const updatedIssueBody = updateCommentId({ issueBody, hiddenData, commentId });
+    await updateGitHubIssue({ user, repo, pr }, updatedIssueBody);
+    await deleteCommentGitHub({ user, repo, commentId: lastCommentId });
 }
 exports.default = sizeReport;
