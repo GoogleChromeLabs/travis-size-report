@@ -23,6 +23,7 @@ const globP = promisify(glob);
 const statP = promisify(stat);
 
 let ghMdOutput = '';
+let ghMdCollapsedOutput = '';
 
 interface FileData {
   name: string;
@@ -33,6 +34,9 @@ interface FileData {
 
 const buildSizePrefix = '=== BUILD SIZES: ';
 const buildSizePrefixRe = new RegExp(`^${escapeRE(buildSizePrefix)}(.+)$`, 'm');
+
+const ascendingSizeSort = (a: any, b: any) => a.bytesDiff - b.bytesDiff;
+const descendingSizeSort = (a: any, b: any) => b.bytesDiff - a.bytesDiff;
 
 function escapeTilde(str: string) {
   return str.replace(/\~/g, '\\~');
@@ -267,6 +271,10 @@ function output(text: string) {
   ghMdOutput = ghMdOutput + '\n' + text;
 }
 
+function collapsedOutput(text: string) {
+  ghMdCollapsedOutput = ghMdCollapsedOutput + '\n' + text;
+}
+
 function outputChanges(changes: BuildChanges) {
   if (
     changes.newItems.length === 0 &&
@@ -274,6 +282,7 @@ function outputChanges(changes: BuildChanges) {
     changes.changedItems.size === 0
   ) {
     output(`#### :raised_hands:   No changes.`);
+    return;
   }
 
   output(`### Changes in existing chunks :pencil2:`);
@@ -282,6 +291,9 @@ function outputChanges(changes: BuildChanges) {
 
   const increasedChunks: any = [];
   const decreasedChunks: any = [];
+  const minorIncChunks: any = [];
+  const minorDecChunks: any = [];
+  const renamedChunks: any = [];
 
   for (const [oldFile, newFile] of changes.changedItems.entries()) {
     // Changed file.
@@ -289,7 +301,8 @@ function outputChanges(changes: BuildChanges) {
 
     const bytesDiff = newFile.gzipSize - oldFile.gzipSize;
     const sizeDiff = prettyBytes(bytesDiff, { signed: true });
-    const changeEmoji = newFile.gzipSize > oldFile.gzipSize ? ':arrow_double_up:' : ':arrow_down:';
+    const changeEmoji =
+      newFile.gzipSize > oldFile.gzipSize ? ':small_red_triangle:' : ':arrow_down:';
 
     const chunkData = {
       sizeDiff,
@@ -301,22 +314,32 @@ function outputChanges(changes: BuildChanges) {
 
     if (bytesDiff > 100) {
       increasedChunks.push(chunkData);
+    } else if (bytesDiff > 0) {
+      minorIncChunks.push(chunkData);
     }
 
     if (bytesDiff < -100) {
       decreasedChunks.push(chunkData);
+    } else if (bytesDiff < 0) {
+      minorDecChunks.push(chunkData);
+    }
+
+    if (bytesDiff === 0) {
+      chunkData.changeEmoji = ':o:';
+      renamedChunks.push(chunkData);
     }
   }
 
-  increasedChunks.sort((a: any, b: any) => b.bytesDiff - a.bytesDiff);
-  decreasedChunks.sort((a: any, b: any) => a.bytesDiff - b.bytesDiff);
+  increasedChunks.sort(descendingSizeSort);
+  decreasedChunks.sort(ascendingSizeSort);
 
-  for (const chunk of increasedChunks) {
-    const { sizeDiff, size, changeEmoji, name } = chunk;
-    output(`| **${sizeDiff}** | ${size} | ${changeEmoji} | ${name}`);
-  }
+  minorIncChunks.sort(descendingSizeSort);
+  minorDecChunks.sort(ascendingSizeSort);
 
-  for (const chunk of decreasedChunks) {
+  const majorChunks = [...increasedChunks, ...decreasedChunks];
+  const minorChunks = [...renamedChunks, ...minorIncChunks, ...minorDecChunks];
+
+  for (const chunk of majorChunks) {
     const { sizeDiff, size, changeEmoji, name } = chunk;
     output(`| **${sizeDiff}** | ${size} | ${changeEmoji} | ${name}`);
   }
@@ -334,7 +357,15 @@ function outputChanges(changes: BuildChanges) {
   output(`| --- | :---: | :--- |`);
   for (const file of changes.deletedItems) {
     const size = prettyBytes(file.gzipSize);
-    output(`| **${size}** | :grey_exclamation: | ${file.name}`);
+    output(`| **${size}** | :negative_squared_cross_mark: | ${file.name}`);
+  }
+
+  collapsedOutput(`| Size Change | Current Size | Status | Chunk`);
+  collapsedOutput(`| --- | --- | :---: | :--- |`);
+
+  for (const chunk of minorChunks) {
+    const { sizeDiff, size, changeEmoji, name } = chunk;
+    collapsedOutput(`| ${sizeDiff} | ${size} | ${changeEmoji} | ${name}`);
   }
 }
 
@@ -402,6 +433,8 @@ export default async function sizeReport(
 
   const hiddenData = getHiddenData(issueBody);
   const { lastCommentId } = hiddenData.sizeReport;
+
+  ghMdOutput += `\n<details><summary>Minor Changes</summary>\n${ghMdCollapsedOutput}\n</details>`;
 
   const commentRes = await commentGitHub({ user, repo, pr }, ghMdOutput);
   const commentData = await commentRes.json();
