@@ -1,13 +1,22 @@
 #!/usr/bin/env node
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const path_1 = __importDefault(require("path"));
-const minimist_1 = __importDefault(require("minimist"));
-const _1 = __importDefault(require("."));
-const argv = minimist_1.default(process.argv.slice(2), {
+'use strict';
+
+function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
+
+var path = _interopDefault(require('path'));
+var minimist = _interopDefault(require('minimist'));
+require('util');
+require('fs');
+require('url');
+require('glob');
+require('gzip-size');
+require('escape-string-regexp');
+require('node-fetch');
+require('chalk');
+require('pretty-bytes');
+var index = require('./index.js');
+
+const argv = minimist(process.argv.slice(2), {
     string: ['branch'],
     alias: { c: 'config' },
 });
@@ -19,7 +28,7 @@ const glob = argv._[1];
 let config = {};
 // Read arguments from config file
 if (configFile) {
-    config = require(path_1.default.join(process.cwd(), configFile === true ? 'sizereport.config.js' : configFile));
+    config = require(path.join(process.cwd(), configFile === true ? 'sizereport.config.js' : configFile));
 }
 // Override config file with command line arguments
 if (repo)
@@ -40,4 +49,5 @@ if (config.branch)
     opts.branch = config.branch;
 if (config.findRenamed)
     opts.findRenamed = config.findRenamed;
-_1.default(user, repoName, config.path, opts);
+index(user, repoName, config.path, opts);
+//# sourceMappingURL=bin.js.map

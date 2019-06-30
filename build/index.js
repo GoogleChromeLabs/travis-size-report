@@ -1,30 +1,86 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
+#!/usr/bin/env node
+'use strict';
+
+function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
+
+var util = require('util');
+var fs = require('fs');
+var url = require('url');
+var glob = _interopDefault(require('glob'));
+var gzipSize = _interopDefault(require('gzip-size'));
+var escapeRE = _interopDefault(require('escape-string-regexp'));
+var fetch = _interopDefault(require('node-fetch'));
+var chalk = _interopDefault(require('chalk'));
+var prettyBytes = _interopDefault(require('pretty-bytes'));
+
+const PLACEHOLDER_REGEX = /\\\[(\w+)\\\]/g;
+const REPLACEMENTS = {
+    extname: '(\\.\\w+)',
+    hash: '[a-f0-9]+',
+    name: '(.+)',
 };
-Object.defineProperty(exports, "__esModule", { value: true });
-const util_1 = require("util");
-const fs_1 = require("fs");
-const url_1 = require("url");
-const glob_1 = __importDefault(require("glob"));
-const gzip_size_1 = __importDefault(require("gzip-size"));
-const escape_string_regexp_1 = __importDefault(require("escape-string-regexp"));
-const node_fetch_1 = __importDefault(require("node-fetch"));
-const chalk_1 = __importDefault(require("chalk"));
-const pretty_bytes_1 = __importDefault(require("pretty-bytes"));
-const find_renamed_1 = require("./find-renamed");
-const globP = util_1.promisify(glob_1.default);
-const statP = util_1.promisify(fs_1.stat);
+/**
+ * Name doesn't start with "./", "/", "../"
+ */
+function isPlainName(name) {
+    return !(name[0] === '/' ||
+        (name[1] === '.' && (name[2] === '/' || (name[2] === '.' && name[3] === '/'))));
+}
+/**
+ * Creates a findRenamed function based on the given `pattern`.
+ *
+ * Patterns support the following placeholders:
+ * - `[extname]`: The file extension of the asset including a leading dot, e.g. `.css`
+ * - `[hash]`: A hash based on the name and content of the asset.
+ * - `[name]`: The file name of the asset excluding any extension.
+ */
+function buildFindRenamedFunc(pattern) {
+    if (!isPlainName(pattern)) {
+        throw new TypeError(`Invalid output pattern "${pattern}, cannot be an absolute or relative path.`);
+    }
+    // Keep track of which placeholder each regex group corresponds to.
+    let i = 1;
+    const groups = [];
+    // Create a regex to extract parts of the path.
+    const parts = escapeRE(pattern).replace(PLACEHOLDER_REGEX, (_match, type) => {
+        const replacement = REPLACEMENTS[type];
+        if (replacement == undefined) {
+            throw new TypeError(`"${type}" is not a valid substitution name`);
+        }
+        groups[i] = type;
+        i++;
+        return replacement;
+    });
+    const partsRe = new RegExp(`^${parts}$`);
+    return function generatedFindRenamed(path, newPaths) {
+        const oldParts = partsRe.exec(path);
+        if (!oldParts)
+            return undefined;
+        return newPaths.find(newPath => {
+            const newParts = partsRe.exec(newPath);
+            if (!newParts || newParts.length !== oldParts.length)
+                return false;
+            for (let i = 1; i < oldParts.length; i++) {
+                if (oldParts[i] !== newParts[i] && groups[i] !== 'hash')
+                    return false;
+            }
+            return true;
+        });
+    };
+}
+
+const globP = util.promisify(glob);
+const statP = util.promisify(fs.stat);
 // Travis reports it doesn't support colour. IT IS WRONG.
-const alwaysChalk = new chalk_1.default.constructor({ level: 4 });
+const alwaysChalk = new chalk.constructor({ level: 4 });
 const buildSizePrefix = '=== BUILD SIZES: ';
-const buildSizePrefixRe = new RegExp(`^${escape_string_regexp_1.default(buildSizePrefix)}(.+)$`, 'm');
+const buildSizePrefixRe = new RegExp(`^${escapeRE(buildSizePrefix)}(.+)$`, 'm');
 /**
  * Recursively-read a directory and turn it into an array of FileDatas
  */
 function pathsToInfoArray(paths) {
     return Promise.all(paths.map(async (path) => {
-        const gzipSizePromise = gzip_size_1.default.file(path);
+        const gzipSizePromise = gzipSize.file(path);
         const statSizePromise = statP(path).then(s => s.size);
         return {
             path,
@@ -34,34 +90,40 @@ function pathsToInfoArray(paths) {
     }));
 }
 function fetchTravis(path, searchParams = {}) {
-    const url = new url_1.URL(path, 'https://api.travis-ci.org');
-    url.search = new url_1.URLSearchParams(searchParams).toString();
-    return node_fetch_1.default(url.href, {
+    const url$1 = new url.URL(path, 'https://api.travis-ci.org');
+    url$1.search = new url.URLSearchParams(searchParams).toString();
+    return fetch(url$1.href, {
         headers: { 'Travis-API-Version': '3' },
     });
 }
-function fetchTravisBuildInfo(user, repo, branch) {
+function fetchTravisBuildInfo(user, repo, branch, limit = 1) {
     return fetchTravis(`/repo/${encodeURIComponent(`${user}/${repo}`)}/builds`, {
         'branch.name': branch,
         state: 'passed',
-        limit: '1',
+        limit: limit.toString(),
         event_type: 'push',
     }).then(r => r.json());
 }
 function fetchTravisText(path) {
     return fetchTravis(path).then(r => r.text());
 }
+function getFileDataFromTravis(builds) {
+    return Promise.all(builds.map(async (build) => {
+        const jobUrl = build.jobs[0]['@href'];
+        const log = await fetchTravisText(jobUrl + '/log.txt');
+        const reResult = buildSizePrefixRe.exec(log);
+        if (!reResult)
+            return undefined;
+        return JSON.parse(reResult[1]);
+    }));
+}
 /**
  * Scrape Travis for the previous build info.
  */
 async function getPreviousBuildInfo(user, repo, branch) {
     const buildData = await fetchTravisBuildInfo(user, repo, branch);
-    const jobUrl = buildData.builds[0].jobs[0]['@href'];
-    const log = await fetchTravisText(jobUrl + '/log.txt');
-    const reResult = buildSizePrefixRe.exec(log);
-    if (!reResult)
-        return;
-    return JSON.parse(reResult[1]);
+    const fileData = await getFileDataFromTravis(buildData.builds);
+    return fileData[0];
 }
 /**
  * Generate an array that represents the difference between builds.
@@ -71,6 +133,7 @@ async function getPreviousBuildInfo(user, repo, branch) {
  */
 async function getChanges(previousBuildInfo, buildInfo, findRenamed) {
     const deletedItems = [];
+    const sameItems = [];
     const changedItems = new Map();
     const matchedNewEntries = new Set();
     for (const oldEntry of previousBuildInfo) {
@@ -82,6 +145,9 @@ async function getChanges(previousBuildInfo, buildInfo, findRenamed) {
         matchedNewEntries.add(newEntry);
         if (oldEntry.gzipSize !== newEntry.gzipSize) {
             changedItems.set(oldEntry, newEntry);
+        }
+        else {
+            sameItems.push(newEntry);
         }
     }
     const newItems = [];
@@ -111,7 +177,7 @@ async function getChanges(previousBuildInfo, buildInfo, findRenamed) {
             newItems.splice(newItemIndex, 1);
         }
     }
-    return { newItems, deletedItems, changedItems };
+    return { newItems, deletedItems, sameItems, changedItems };
 }
 function outputChanges(changes) {
     // One letter references, so it's easier to get the spacing right.
@@ -124,24 +190,24 @@ function outputChanges(changes) {
         console.log(`  No changes.`);
     }
     for (const file of changes.newItems) {
-        console.log(`  ${g('ADDED')}   ${file.path} - ${pretty_bytes_1.default(file.gzipSize)}`);
+        console.log(`  ${g('ADDED')}   ${file.path} - ${prettyBytes(file.gzipSize)}`);
     }
     for (const file of changes.deletedItems) {
-        console.log(`  ${r('REMOVED')} ${file.path} - was ${pretty_bytes_1.default(file.gzipSize)}`);
+        console.log(`  ${r('REMOVED')} ${file.path} - was ${prettyBytes(file.gzipSize)}`);
     }
     for (const [oldFile, newFile] of changes.changedItems.entries()) {
         // Changed file.
         let size;
         if (oldFile.gzipSize === newFile.gzipSize) {
             // Just renamed.
-            size = `${pretty_bytes_1.default(newFile.gzipSize)} -> no change`;
+            size = `${prettyBytes(newFile.gzipSize)} -> no change`;
         }
         else {
             const color = newFile.gzipSize > oldFile.gzipSize ? r : g;
-            const sizeDiff = pretty_bytes_1.default(newFile.gzipSize - oldFile.gzipSize, { signed: true });
+            const sizeDiff = prettyBytes(newFile.gzipSize - oldFile.gzipSize, { signed: true });
             const relativeDiff = Math.round((newFile.gzipSize / oldFile.gzipSize) * 1000) / 1000;
             size =
-                `${pretty_bytes_1.default(oldFile.gzipSize)} -> ${pretty_bytes_1.default(newFile.gzipSize)}` +
+                `${prettyBytes(oldFile.gzipSize)} -> ${prettyBytes(newFile.gzipSize)}` +
                     ' (' +
                     color(`${sizeDiff}, ${relativeDiff}x`) +
                     ')';
@@ -156,7 +222,7 @@ async function sizeReport(user, repo, files, { branch = 'master', findRenamed } 
     if (typeof files === 'string')
         files = [files];
     if (typeof findRenamed === 'string')
-        findRenamed = find_renamed_1.buildFindRenamedFunc(findRenamed);
+        findRenamed = buildFindRenamedFunc(findRenamed);
     // Get target files
     const filePaths = [];
     for (const glob of files) {
@@ -183,4 +249,6 @@ async function sizeReport(user, repo, files, { branch = 'master', findRenamed } 
     const buildChanges = await getChanges(previousBuildInfo, buildInfo, findRenamed);
     outputChanges(buildChanges);
 }
-exports.default = sizeReport;
+
+module.exports = sizeReport;
+//# sourceMappingURL=index.js.map

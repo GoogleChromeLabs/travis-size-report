@@ -4,9 +4,11 @@
     "target": "esnext",
     "outDir": "build",
     "declaration": true,
-    "module": "commonjs",
+    "module": "esnext",
     "esModuleInterop": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
     "lib": ["esnext"]
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "rollup.config.js"]
 }

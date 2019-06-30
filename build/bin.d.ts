@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Configuration file for travis-size-report.
  * This is typically `sizereport.config.js`.

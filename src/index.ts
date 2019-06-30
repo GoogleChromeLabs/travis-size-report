@@ -54,17 +54,32 @@ function fetchTravis(
   });
 }
 
-function fetchTravisBuildInfo(user: string, repo: string, branch: string) {
+function fetchTravisBuildInfo(user: string, repo: string, branch: string, limit: number = 1) {
   return fetchTravis(`/repo/${encodeURIComponent(`${user}/${repo}`)}/builds`, {
     'branch.name': branch,
     state: 'passed',
-    limit: '1',
+    limit: limit.toString(),
     event_type: 'push',
   }).then(r => r.json());
 }
 
 function fetchTravisText(path: string): Promise<string> {
   return fetchTravis(path).then(r => r.text());
+}
+
+function getFileDataFromTravis(
+  builds: { jobs: { '@href': string }[] }[],
+): Promise<(FileData[] | undefined)[]> {
+  return Promise.all(
+    builds.map(async build => {
+      const jobUrl = build.jobs[0]['@href'];
+      const log = await fetchTravisText(jobUrl + '/log.txt');
+      const reResult = buildSizePrefixRe.exec(log);
+
+      if (!reResult) return undefined;
+      return JSON.parse(reResult[1]);
+    }),
+  );
 }
 
 /**
@@ -76,17 +91,14 @@ async function getPreviousBuildInfo(
   branch: string,
 ): Promise<FileData[] | undefined> {
   const buildData = await fetchTravisBuildInfo(user, repo, branch);
-  const jobUrl = buildData.builds[0].jobs[0]['@href'];
-  const log = await fetchTravisText(jobUrl + '/log.txt');
-  const reResult = buildSizePrefixRe.exec(log);
-
-  if (!reResult) return;
-  return JSON.parse(reResult[1]);
+  const fileData = await getFileDataFromTravis(buildData.builds);
+  return fileData[0];
 }
 
 interface BuildChanges {
   deletedItems: FileData[];
   newItems: FileData[];
+  sameItems: FileData[];
   changedItems: Map<FileData, FileData>;
 }
 
@@ -102,6 +114,7 @@ async function getChanges(
   findRenamed?: FindRenamed,
 ): Promise<BuildChanges> {
   const deletedItems: FileData[] = [];
+  const sameItems: FileData[] = [];
   const changedItems = new Map<FileData, FileData>();
   const matchedNewEntries = new Set<FileData>();
 
@@ -115,6 +128,8 @@ async function getChanges(
     matchedNewEntries.add(newEntry);
     if (oldEntry.gzipSize !== newEntry.gzipSize) {
       changedItems.set(oldEntry, newEntry);
+    } else {
+      sameItems.push(newEntry);
     }
   }
 
@@ -149,7 +164,7 @@ async function getChanges(
     }
   }
 
-  return { newItems, deletedItems, changedItems };
+  return { newItems, deletedItems, sameItems, changedItems };
 }
 
 function outputChanges(changes: BuildChanges) {
@@ -242,7 +257,6 @@ export default async function sizeReport(
   console.log('\nBuild change report:');
 
   let previousBuildInfo;
-
   try {
     previousBuildInfo = await getPreviousBuildInfo(user, repo, branch);
   } catch (err) {
