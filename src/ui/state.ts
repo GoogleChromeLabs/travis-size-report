@@ -227,7 +227,6 @@ function _makeIconTemplateGetter() {
    */
   const symbolIcons: { [type: string]: SVGSVGElement } = {
     D: _icons.querySelector<SVGSVGElement>('.foldericon')!,
-    C: _icons.querySelector<SVGSVGElement>('.componenticon')!,
     J: _icons.querySelector<SVGSVGElement>('.javaclassicon')!,
     F: _icons.querySelector<SVGSVGElement>('.fileicon')!,
     b: _icons.querySelector<SVGSVGElement>('.bssicon')!,

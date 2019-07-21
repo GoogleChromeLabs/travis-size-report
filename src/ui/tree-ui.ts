@@ -64,13 +64,6 @@ const newTreeElement = (() => {
       // This symbol was removed between the before and after versions.
       symbolNameElement.classList.add('removed');
     }
-
-    if (state.has('highlight')) {
-      const stats = Object.values(node.childStats);
-      if (stats.some(stat => stat.highlight > 0)) {
-        symbolNameElement.classList.add('highlight');
-      }
-    }
   }
 
   /**

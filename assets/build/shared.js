@@ -16,19 +16,6 @@ const _KEYS = Object.freeze({
     NUM_ALIASES: 'a',
     TYPE: 't',
 });
-/** Abberivated keys used by FileEntrys in the JSON data file. */
-const _FLAGS = Object.freeze({
-    ANONYMOUS: 2 ** 0,
-    STARTUP: 2 ** 1,
-    UNLIKELY: 2 ** 2,
-    REL: 2 ** 3,
-    REL_LOCAL: 2 ** 4,
-    GENERATED_SOURCE: 2 ** 5,
-    CLONE: 2 ** 6,
-    HOT: 2 ** 7,
-    COVERAGE: 2 ** 8,
-    UNCOMPRESSED: 2 ** 9,
-});
 /**
  * @enum {number} Various byte units and the corresponding amount of bytes
  * that one unit represents.
@@ -44,7 +31,6 @@ const _BYTE_UNITS = Object.freeze({
  */
 const _CONTAINER_TYPES = {
     DIRECTORY: 'D',
-    COMPONENT: 'C',
     FILE: 'F',
     JAVA_CLASS: 'J',
 };
@@ -99,17 +85,8 @@ function debounce(func, wait) {
     }
     return debounced;
 }
-/**
- * Returns tree if a symbol has a certain bit flag
- * @param flag Bit flag from `_FLAGS`
- * @param symbolNode
- */
-function hasFlag(flag, symbolNode) {
-    return (symbolNode.flags & flag) === flag;
-}
 Object.assign(self, {
     _KEYS,
-    _FLAGS,
     _BYTE_UNITS,
     _CONTAINER_TYPES,
     _CONTAINER_TYPE_SET,
@@ -124,6 +101,5 @@ Object.assign(self, {
     shortName,
     types,
     debounce,
-    hasFlag,
 });
 //# sourceMappingURL=shared.js.map

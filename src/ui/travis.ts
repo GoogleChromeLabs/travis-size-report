@@ -11,13 +11,12 @@ function transformChanges(changes: BuildChanges): { meta: Meta; entries: FileEnt
     changes.deletedItems.length +
     changes.sameItems.length +
     changes.changedItems.size;
-  const meta = { components: ['N/A'], total, diff_mode: true };
+  const meta: Meta = { total, diff_mode: true };
 
   const entries: FileEntry[] = [];
   for (const data of changes.newItems) {
     entries.push({
       p: data.path,
-      c: 0,
       s: [
         {
           n: basename(data.path),
@@ -37,7 +36,6 @@ function transformChanges(changes: BuildChanges): { meta: Meta; entries: FileEnt
   for (const data of changes.deletedItems) {
     entries.push({
       p: data.path,
-      c: 0,
       s: [
         {
           n: basename(data.path),
@@ -57,7 +55,6 @@ function transformChanges(changes: BuildChanges): { meta: Meta; entries: FileEnt
   for (const data of changes.sameItems) {
     entries.push({
       p: data.path,
-      c: 0,
       s: [
         {
           n: basename(data.path),
@@ -77,7 +74,6 @@ function transformChanges(changes: BuildChanges): { meta: Meta; entries: FileEnt
   for (const [oldData, newData] of changes.changedItems) {
     entries.push({
       p: newData.path,
-      c: 0,
       s: [
         {
           n: basename(newData.path),

@@ -211,7 +211,6 @@ function _makeIconTemplateGetter() {
      */
     const symbolIcons = {
         D: _icons.querySelector('.foldericon'),
-        C: _icons.querySelector('.componenticon'),
         J: _icons.querySelector('.javaclassicon'),
         F: _icons.querySelector('.fileicon'),
         b: _icons.querySelector('.bssicon'),
@@ -322,4 +321,4 @@ const { getSizeContents, setSizeClasses } = _makeSizeTextGetter();
 _startListeners();
 
 export { getIconStyle as a, getSizeContents as b, setSizeClasses as c, dom as d, form as f, getIconTemplate as g, state as s };
-//# sourceMappingURL=chunk-d41543af.js.map
+//# sourceMappingURL=chunk-dba7e352.js.map

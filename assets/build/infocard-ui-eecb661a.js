@@ -1,20 +1,8 @@
-import { s as state, a as getIconStyle, b as getSizeContents, d as dom, c as setSizeClasses, g as getIconTemplate } from './chunk-d41543af.js';
+import { s as state, a as getIconStyle, b as getSizeContents, d as dom, c as setSizeClasses, g as getIconTemplate } from './chunk-dba7e352.js';
 
 // Copyright 2018 The Chromium Authors. All rights reserved.
 const displayInfocard = (() => {
     const _CANVAS_RADIUS = 40;
-    const _FLAG_LABELS = new Map([
-        [_FLAGS.ANONYMOUS, 'anon'],
-        [_FLAGS.STARTUP, 'startup'],
-        [_FLAGS.UNLIKELY, 'unlikely'],
-        [_FLAGS.REL, 'rel'],
-        [_FLAGS.REL_LOCAL, 'rel.loc'],
-        [_FLAGS.GENERATED_SOURCE, 'gen'],
-        [_FLAGS.CLONE, 'clone'],
-        [_FLAGS.HOT, 'hot'],
-        [_FLAGS.COVERAGE, 'covered'],
-        [_FLAGS.UNCOMPRESSED, 'uncompressed'],
-    ]);
     class Infocard {
         constructor(id) {
             /**
@@ -27,7 +15,6 @@ const displayInfocard = (() => {
             this._pathInfo = this._infocard.querySelector('.path-info');
             this._iconInfo = this._infocard.querySelector('.icon-info');
             this._typeInfo = this._infocard.querySelector('.type-info');
-            this._flagsInfo = this._infocard.querySelector('.flags-info');
         }
         /**
          * Updates the size header, which normally displayed the byte size of the
@@ -80,20 +67,6 @@ const displayInfocard = (() => {
             this._iconInfo.appendChild(icon);
         }
         /**
-         * Returns a string representing the flags in the node.
-         * @param {TreeNode} node
-         */
-        _flagsString(node) {
-            if (!node.flags) {
-                return '';
-            }
-            const flagsString = Array.from(_FLAG_LABELS)
-                .filter(([flag]) => hasFlag(flag, node))
-                .map(([, part]) => part)
-                .join(',');
-            return `{${flagsString}}`;
-        }
-        /**
          * Toggle wheter or not the card is visible.
          * @param {boolean} isHidden
          */
@@ -120,7 +93,6 @@ const displayInfocard = (() => {
                 this._setTypeContent(icon);
                 this._lastType = type;
             }
-            this._flagsInfo.textContent = this._flagsString(node);
         }
         /**
          * Updates the card on the next animation frame.
@@ -177,10 +149,6 @@ const displayInfocard = (() => {
         _setTypeContent(icon) {
             super._setTypeContent(icon);
             icon.classList.add('canvas-overlay');
-        }
-        _flagsString(containerNode) {
-            const flags = super._flagsString(containerNode);
-            return flags ? `- contains ${flags}` : '';
         }
         /**
          * Draw a border around part of a pie chart.
@@ -259,7 +227,6 @@ const displayInfocard = (() => {
             const extraRows = Object.assign({}, this._infoRows);
             const statsEntries = Object.entries(containerNode.childStats).sort((a, b) => b[1].size - a[1].size);
             const diffMode = state.has('diff_mode');
-            const highlightMode = state.has('highlight');
             let totalSize = 0;
             for (const [, stats] of statsEntries) {
                 totalSize += Math.abs(stats.size);
@@ -276,12 +243,6 @@ const displayInfocard = (() => {
                 if (arcLength > 0) {
                     const angleEnd = angleStart + arcLength;
                     this._drawSlice(angleStart, angleEnd, color);
-                    if (highlightMode) {
-                        const highlightPercent = stats.highlight / totalSize;
-                        const highlightArcLength = Math.abs(highlightPercent) * 2 * Math.PI;
-                        const highlightEnd = angleStart + highlightArcLength;
-                        this._drawBorder(angleStart, highlightEnd, '#feefc3', 32);
-                    }
                     if (diffMode) {
                         const strokeColor = stats.size > 0 ? '#ea4335' : '#34a853';
                         this._drawBorder(angleStart, angleEnd, strokeColor, 16);
@@ -317,4 +278,4 @@ const displayInfocard = (() => {
 })();
 
 export { displayInfocard };
-//# sourceMappingURL=infocard-ui-5903d663.js.map
+//# sourceMappingURL=infocard-ui-eecb661a.js.map

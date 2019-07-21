@@ -103,12 +103,11 @@ function transformChanges(changes) {
         changes.deletedItems.length +
         changes.sameItems.length +
         changes.changedItems.size;
-    const meta = { components: ['N/A'], total, diff_mode: true };
+    const meta = { total, diff_mode: true };
     const entries = [];
     for (const data of changes.newItems) {
         entries.push({
             p: data.path,
-            c: 0,
             s: [
                 {
                     n: basename(data.path),
@@ -128,7 +127,6 @@ function transformChanges(changes) {
     for (const data of changes.deletedItems) {
         entries.push({
             p: data.path,
-            c: 0,
             s: [
                 {
                     n: basename(data.path),
@@ -148,7 +146,6 @@ function transformChanges(changes) {
     for (const data of changes.sameItems) {
         entries.push({
             p: data.path,
-            c: 0,
             s: [
                 {
                     n: basename(data.path),
@@ -168,7 +165,6 @@ function transformChanges(changes) {
     for (const [oldData, newData] of changes.changedItems) {
         entries.push({
             p: newData.path,
-            c: 0,
             s: [
                 {
                     n: basename(newData.path),
@@ -215,12 +211,6 @@ class TravisFetcher {
 // found in the LICENSE file.
 importScripts('./shared.js');
 const _PATH_SEP = '/';
-const _NAMES_TO_FLAGS = Object.freeze({
-    hot: _FLAGS.HOT,
-    generated: _FLAGS.GENERATED_SOURCE,
-    coverage: _FLAGS.COVERAGE,
-    uncompressed: _FLAGS.UNCOMPRESSED,
-});
 function getSourcePath(fileEntry) {
     return fileEntry[_KEYS.SOURCE_PATH];
 }
@@ -256,7 +246,7 @@ function _compareFunc(a, b) {
  * omitted, a default will be used instead.
  */
 function createNode(options) {
-    const { idPath, srcPath, type, shortNameIndex, size = 0, flags = 0, numAliases = 1, childStats = {}, } = options;
+    const { idPath, srcPath, type, shortNameIndex, size = 0, numAliases = 1, childStats = {}, } = options;
     return {
         children: [],
         parent: null,
@@ -265,7 +255,6 @@ function createNode(options) {
         type,
         shortNameIndex,
         size,
-        flags,
         numAliases,
         childStats,
     };
@@ -284,19 +273,14 @@ class TreeBuilder {
      * @param {(symbolNode: TreeNode) => boolean} options.filterTest Called to see
      * if a symbol should be included. If a symbol fails the test, it will not be
      * attached to the tree.
-     * @param {(symbolNode: TreeNode) => boolean} options.highlightTest Called to
-     * see if a symbol should be highlighted.
      * @param {string} options.sep Path seperator used to find parent names.
-     * @param {Meta} options.meta Metadata associated with this tree.
      */
     constructor(options) {
         /** Cache for directory nodes */
         this._parents = new Map();
         this._getPath = options.getPath;
         this._filterTest = options.filterTest;
-        this._highlightTest = options.highlightTest;
         this._sep = options.sep || _PATH_SEP;
-        this._meta = options.meta;
         // srcPath and component don't make sense for the root node.
         this.rootNode = createNode({
             idPath: this._sep,
@@ -321,7 +305,6 @@ class TreeBuilder {
         node.parent = directParent;
         const additionalSize = node.size;
         const additionalStats = Object.entries(node.childStats);
-        const additionalFlags = node.flags;
         // Update the size and childStats of all ancestors
         while (node.parent != null) {
             const { parent } = node;
@@ -335,12 +318,11 @@ class TreeBuilder {
             for (const [type, stat] of additionalStats) {
                 let parentStat = parent.childStats[type];
                 if (parentStat == null) {
-                    parentStat = { size: 0, count: 0, highlight: 0 };
+                    parentStat = { size: 0, count: 0 };
                     parent.childStats[type] = parentStat;
                 }
                 parentStat.size += stat.size;
                 parentStat.count += stat.count;
-                parentStat.highlight += stat.highlight;
                 const absSize = Math.abs(parentStat.size);
                 if (absSize > lastBiggestSize) {
                     lastBiggestType = type;
@@ -349,7 +331,6 @@ class TreeBuilder {
             }
             parent.type = `${containerType}${lastBiggestType}`;
             parent.size += additionalSize;
-            parent.flags |= additionalFlags;
             node = parent;
         }
     }
@@ -458,13 +439,7 @@ class TreeBuilder {
      * @private
      */
     _containerType(childIdPath) {
-        const useAlternateType = childIdPath.lastIndexOf(this._sep) > childIdPath.lastIndexOf(_PATH_SEP);
-        if (useAlternateType) {
-            return _CONTAINER_TYPES.COMPONENT;
-        }
-        else {
-            return _CONTAINER_TYPES.DIRECTORY;
-        }
+        return _CONTAINER_TYPES.DIRECTORY;
     }
     /**
      * Helper to return the parent of the given node. The parent is determined
@@ -496,7 +471,7 @@ class TreeBuilder {
                 parentNode = createNode({
                     idPath: parentPath,
                     shortNameIndex: lastIndexOf(parentPath, this._sep) + 1,
-                    type: this._containerType(childNode.idPath),
+                    type: _CONTAINER_TYPES.DIRECTORY,
                 });
                 this._parents.set(parentPath, parentNode);
             }
@@ -529,7 +504,6 @@ class TreeBuilder {
             const size = symbol[_KEYS.SIZE];
             const type = symbol[_KEYS.TYPE];
             const count = (_KEYS.COUNT in symbol ? symbol[_KEYS.COUNT] : defaultCount);
-            const flags = _KEYS.FLAGS in symbol ? symbol[_KEYS.FLAGS] : 0;
             const numAliases = _KEYS.NUM_ALIASES in symbol ? symbol[_KEYS.NUM_ALIASES] : 1;
             const symbolNode = createNode({
                 // Join file path to symbol name with a ":"
@@ -538,19 +512,14 @@ class TreeBuilder {
                 shortNameIndex: idPath.length + 1,
                 size,
                 type,
-                flags,
                 numAliases,
                 childStats: {
                     [type]: {
                         size,
                         count,
-                        highlight: 0,
                     },
                 },
             });
-            if (this._highlightTest(symbolNode)) {
-                symbolNode.childStats[type].highlight = size;
-            }
             if (this._filterTest(symbolNode)) {
                 this._attachToParent(symbolNode, fileNode);
             }
@@ -627,7 +596,6 @@ class TreeBuilder {
 function parseOptions(options) {
     const params = new URLSearchParams(options);
     const url = params.get('load_url');
-    const flagToHighlight = _NAMES_TO_FLAGS[params.get('highlight')];
     let minSymbolSize = Number(params.get('min_size'));
     if (Number.isNaN(minSymbolSize)) {
         minSymbolSize = 0;
@@ -680,14 +648,7 @@ function parseOptions(options) {
     function filterTest(symbolNode) {
         return filters.every(fn => fn(symbolNode));
     }
-    let highlightTest;
-    if (flagToHighlight) {
-        highlightTest = symbolNode => hasFlag(flagToHighlight, symbolNode);
-    }
-    else {
-        highlightTest = () => false;
-    }
-    return { filterTest, highlightTest, url };
+    return { filterTest, url };
 }
 let builder = null;
 const fetcher = new TravisFetcher('GoogleChromeLabs/travis-size-report');
@@ -695,12 +656,10 @@ const fetcher = new TravisFetcher('GoogleChromeLabs/travis-size-report');
  * Assemble a tree when this worker receives a message.
  * @param {(symbolNode: TreeNode) => boolean} filterTest Filter function that
  * each symbol is tested against
- * @param {(symbolNode: TreeNode) => boolean} highlightTest Filter function that
- * each symbol's flags are tested against
  * @param {(msg: TreeProgress) => void} onProgress
  * @returns {Promise<TreeProgress>}
  */
-async function buildTree(filterTest, highlightTest, onProgress) {
+async function buildTree(filterTest, onProgress) {
     /** @type {Meta | null} Object from the first line of the data file */
     let meta = null;
     /**
@@ -749,9 +708,7 @@ async function buildTree(filterTest, highlightTest, onProgress) {
                 builder = new TreeBuilder({
                     getPath: getSourcePath,
                     filterTest,
-                    highlightTest,
-                    sep: _PATH_SEP,
-                    meta,
+                    sep: _PATH_SEP
                 });
                 postToUi();
             }
@@ -782,7 +739,7 @@ async function buildTree(filterTest, highlightTest, onProgress) {
 }
 const actions = {
     load({ input, options }) {
-        const { filterTest, highlightTest, url } = parseOptions(options);
+        const { filterTest, url } = parseOptions(options);
         if (input === 'from-url://') {
             if (url) {
                 // Display the data from the `load_url` query parameter
@@ -794,7 +751,7 @@ const actions = {
             console.info('Displaying uploaded data');
             fetcher.setInput(input);
         }
-        return buildTree(filterTest, highlightTest, progress => {
+        return buildTree(filterTest, progress => {
             // @ts-ignore
             self.postMessage(progress);
         });

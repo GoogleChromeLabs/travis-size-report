@@ -20,26 +20,12 @@ import {
 export const displayInfocard = (() => {
   const _CANVAS_RADIUS = 40;
 
-  const _FLAG_LABELS = new Map([
-    [_FLAGS.ANONYMOUS, 'anon'],
-    [_FLAGS.STARTUP, 'startup'],
-    [_FLAGS.UNLIKELY, 'unlikely'],
-    [_FLAGS.REL, 'rel'],
-    [_FLAGS.REL_LOCAL, 'rel.loc'],
-    [_FLAGS.GENERATED_SOURCE, 'gen'],
-    [_FLAGS.CLONE, 'clone'],
-    [_FLAGS.HOT, 'hot'],
-    [_FLAGS.COVERAGE, 'covered'],
-    [_FLAGS.UNCOMPRESSED, 'uncompressed'],
-  ]);
-
   class Infocard {
     protected _infocard: HTMLElement;
     private _sizeInfo: HTMLHeadingElement;
     private _pathInfo: HTMLParagraphElement;
     protected _iconInfo: HTMLDivElement;
     private _typeInfo: HTMLSpanElement;
-    private _flagsInfo: HTMLSpanElement;
 
     /**
      * Last symbol type displayed.
@@ -53,7 +39,6 @@ export const displayInfocard = (() => {
       this._pathInfo = this._infocard.querySelector<HTMLParagraphElement>('.path-info')!;
       this._iconInfo = this._infocard.querySelector<HTMLDivElement>('.icon-info')!;
       this._typeInfo = this._infocard.querySelector<HTMLSpanElement>('.type-info')!;
-      this._flagsInfo = this._infocard.querySelector<HTMLSpanElement>('.flags-info')!;
     }
 
     /**
@@ -113,22 +98,6 @@ export const displayInfocard = (() => {
     }
 
     /**
-     * Returns a string representing the flags in the node.
-     * @param {TreeNode} node
-     */
-    _flagsString(node: TreeNode) {
-      if (!node.flags) {
-        return '';
-      }
-
-      const flagsString = Array.from(_FLAG_LABELS)
-        .filter(([flag]) => hasFlag(flag, node))
-        .map(([, part]) => part)
-        .join(',');
-      return `{${flagsString}}`;
-    }
-
-    /**
      * Toggle wheter or not the card is visible.
      * @param {boolean} isHidden
      */
@@ -156,7 +125,6 @@ export const displayInfocard = (() => {
         this._setTypeContent(icon);
         this._lastType = type;
       }
-      this._flagsInfo.textContent = this._flagsString(node);
     }
 
     /**
@@ -229,11 +197,6 @@ export const displayInfocard = (() => {
     _setTypeContent(icon: SVGSVGElement) {
       super._setTypeContent(icon);
       icon.classList.add('canvas-overlay');
-    }
-
-    _flagsString(containerNode: TreeNode) {
-      const flags = super._flagsString(containerNode);
-      return flags ? `- contains ${flags}` : '';
     }
 
     /**
@@ -325,7 +288,6 @@ export const displayInfocard = (() => {
         (a, b) => b[1].size - a[1].size,
       );
       const diffMode = state.has('diff_mode');
-      const highlightMode = state.has('highlight');
       let totalSize = 0;
       for (const [, stats] of statsEntries) {
         totalSize += Math.abs(stats.size);
@@ -345,13 +307,6 @@ export const displayInfocard = (() => {
           const angleEnd = angleStart + arcLength;
 
           this._drawSlice(angleStart, angleEnd, color);
-          if (highlightMode) {
-            const highlightPercent = stats.highlight / totalSize;
-            const highlightArcLength = Math.abs(highlightPercent) * 2 * Math.PI;
-            const highlightEnd = angleStart + highlightArcLength;
-
-            this._drawBorder(angleStart, highlightEnd, '#feefc3', 32);
-          }
           if (diffMode) {
             const strokeColor = stats.size > 0 ? '#ea4335' : '#34a853';
             this._drawBorder(angleStart, angleEnd, strokeColor, 16);
