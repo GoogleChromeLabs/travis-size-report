@@ -13,8 +13,7 @@ function transformChanges(changes: BuildChanges): { meta: Meta; entries: FileEnt
     changes.changedItems.size;
   const meta = { components: ['N/A'], total, diff_mode: true };
 
-  /** @type {FileEntry[]} */
-  const entries = [];
+  const entries: FileEntry[] = [];
   for (const data of changes.newItems) {
     entries.push({
       p: data.path,

@@ -152,7 +152,6 @@ function _initState() {
 function _startListeners() {
     const _SHOW_OPTIONS_STORAGE_KEY = 'show-options';
     const typesFilterContainer = document.querySelector('#types-filter');
-    const methodCountInput = form.elements.namedItem('method_count');
     const byteunit = form.elements.namedItem('byteunit');
     const typeCheckboxes = form.elements.namedItem(_TYPE_STATE_KEY);
     const sizeHeader = document.querySelector('#size-header');
@@ -171,23 +170,6 @@ function _startListeners() {
     if (localStorage.getItem(_SHOW_OPTIONS_STORAGE_KEY) !== 'false') {
         document.body.classList.add('show-options');
     }
-    /**
-     * Disable some fields when method_count is set
-     */
-    function setMethodCountModeUI() {
-        if (methodCountInput.checked) {
-            byteunit.setAttribute('disabled', '');
-            typesFilterContainer.setAttribute('disabled', '');
-            sizeHeader.textContent = 'Methods';
-        }
-        else {
-            byteunit.removeAttribute('disabled');
-            typesFilterContainer.removeAttribute('disabled');
-            sizeHeader.textContent = 'Size';
-        }
-    }
-    setMethodCountModeUI();
-    methodCountInput.addEventListener('change', setMethodCountModeUI);
     /**
      * Display error text on blur for regex inputs, if the input is invalid.
      * @param {Event} event
@@ -290,40 +272,27 @@ function _makeSizeTextGetter() {
      * size element body. Can be consumed by `_applySizeFunc()`
      */
     function getSizeContents(node) {
-        if (state.has('method_count')) {
-            const { count: methodCount = 0 } = node.childStats[_DEX_METHOD_SYMBOL_TYPE] || {};
-            const methodStr = methodCount.toLocaleString(_LOCALE, {
-                useGrouping: true,
-            });
-            return {
-                description: `${methodStr} method${methodCount === 1 ? '' : 's'}`,
-                element: document.createTextNode(methodStr),
-                value: methodCount,
-            };
+        const bytes = node.size;
+        const bytesGrouped = bytes.toLocaleString(_LOCALE, { useGrouping: true });
+        let description = `${bytesGrouped} bytes`;
+        if (node.numAliases > 1) {
+            description += ` for 1 of ${node.numAliases} aliases`;
         }
-        else {
-            const bytes = node.size;
-            const bytesGrouped = bytes.toLocaleString(_LOCALE, { useGrouping: true });
-            let description = `${bytesGrouped} bytes`;
-            if (node.numAliases > 1) {
-                description += ` for 1 of ${node.numAliases} aliases`;
-            }
-            const unit = state.get('byteunit') || 'KiB';
-            const suffix = _BYTE_UNITS[unit];
-            // Format |bytes| as a number with 2 digits after the decimal point
-            const text = (bytes / suffix).toLocaleString(_LOCALE, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            });
-            const textNode = document.createTextNode(`${text} `);
-            // Display the suffix with a smaller font
-            const suffixElement = dom.textElement('small', unit);
-            return {
-                description,
-                element: dom.createFragment([textNode, suffixElement]),
-                value: bytes,
-            };
-        }
+        const unit = state.get('byteunit') || 'KiB';
+        const suffix = _BYTE_UNITS[unit];
+        // Format |bytes| as a number with 2 digits after the decimal point
+        const text = (bytes / suffix).toLocaleString(_LOCALE, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        });
+        const textNode = document.createTextNode(`${text} `);
+        // Display the suffix with a smaller font
+        const suffixElement = dom.textElement('small', unit);
+        return {
+            description,
+            element: dom.createFragment([textNode, suffixElement]),
+            value: bytes,
+        };
     }
     /**
      * Set classes on an element based on the size it represents.
@@ -353,4 +322,4 @@ const { getSizeContents, setSizeClasses } = _makeSizeTextGetter();
 _startListeners();
 
 export { getIconStyle as a, getSizeContents as b, setSizeClasses as c, dom as d, form as f, getIconTemplate as g, state as s };
-//# sourceMappingURL=chunk-047543d9.js.map
+//# sourceMappingURL=chunk-d41543af.js.map

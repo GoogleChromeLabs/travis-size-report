@@ -62,10 +62,6 @@ function getSourcePath(fileEntry: FileEntry) {
   return fileEntry[_KEYS.SOURCE_PATH];
 }
 
-function getComponent(meta: Meta, fileEntry: FileEntry) {
-  return meta.components[fileEntry[_KEYS.COMPONENT_INDEX]];
-}
-
 /**
  * Find the last index of either '/' or `sep` in the given path.
  */
@@ -105,7 +101,6 @@ function createNode(
   const {
     idPath,
     srcPath,
-    component,
     type,
     shortNameIndex,
     size = 0,
@@ -118,7 +113,6 @@ function createNode(
     parent: null,
     idPath,
     srcPath: srcPath!,
-    component: component!,
     type,
     shortNameIndex,
     size,
@@ -286,7 +280,6 @@ class TreeBuilder {
           classNode = createNode({
             idPath: classIdPath,
             srcPath: node.srcPath,
-            component: node.component,
             shortNameIndex: shortNameIndex,
             type: _CONTAINER_TYPES.JAVA_CLASS,
           });
@@ -417,12 +410,10 @@ class TreeBuilder {
   addFileEntry(fileEntry: FileEntry, diffMode: boolean) {
     const idPath = this._getPath(fileEntry);
     const srcPath = getSourcePath(fileEntry);
-    const component = getComponent(this._meta, fileEntry);
     // make node for this
     const fileNode = createNode({
       idPath,
       srcPath,
-      component,
       shortNameIndex: lastIndexOf(idPath, this._sep) + 1,
       type: _CONTAINER_TYPES.FILE,
     });
@@ -439,7 +430,6 @@ class TreeBuilder {
         // Join file path to symbol name with a ":"
         idPath: `${idPath}:${symbol[_KEYS.SYMBOL_NAME]}`,
         srcPath,
-        component,
         shortNameIndex: idPath.length + 1,
         size,
         type,
@@ -542,9 +532,6 @@ function parseOptions(options: string) {
   const params = new URLSearchParams(options);
 
   const url = params.get('load_url');
-  const groupBy = params.get('group_by') || 'source_path';
-  const methodCountMode = params.has('method_count');
-  const filterGeneratedFiles = params.has('generated_filter');
   const flagToHighlight = _NAMES_TO_FLAGS[params.get('highlight') as keyof typeof _NAMES_TO_FLAGS];
 
   let minSymbolSize = Number(params.get('min_size'));
@@ -555,15 +542,10 @@ function parseOptions(options: string) {
   const includeRegex = params.get('include');
   const excludeRegex = params.get('exclude');
 
-  let typeFilter: Set<string>;
-  if (methodCountMode) {
-    typeFilter = new Set(_DEX_METHOD_SYMBOL_TYPE);
-  } else {
-    typeFilter = new Set(types(params.getAll(_TYPE_STATE_KEY)));
-    if (typeFilter.size === 0) {
-      typeFilter = new Set(_SYMBOL_TYPE_SET);
-      typeFilter.delete('b');
-    }
+  let typeFilter: Set<string> = new Set(types(params.getAll(_TYPE_STATE_KEY)));
+  if (typeFilter.size === 0) {
+    typeFilter = new Set(_SYMBOL_TYPE_SET);
+    typeFilter.delete('b');
   }
 
   /**
@@ -580,11 +562,6 @@ function parseOptions(options: string) {
   // Ensure the symbol size wasn't filtered out
   if (typeFilter.size < _SYMBOL_TYPE_SET.size) {
     filters.push(s => typeFilter.has(s.type));
-  }
-
-  // Only show generated files
-  if (filterGeneratedFiles) {
-    filters.push(s => hasFlag(_FLAGS.GENERATED_SOURCE, s));
   }
 
   // Search symbol names using regex
@@ -620,7 +597,7 @@ function parseOptions(options: string) {
     highlightTest = () => false;
   }
 
-  return { groupBy, filterTest, highlightTest, url };
+  return { filterTest, highlightTest, url };
 }
 
 let builder: TreeBuilder | null = null;
@@ -628,7 +605,6 @@ const fetcher = new TravisFetcher('GoogleChromeLabs/travis-size-report');
 
 /**
  * Assemble a tree when this worker receives a message.
- * @param {string} groupBy Sets how the tree is grouped.
  * @param {(symbolNode: TreeNode) => boolean} filterTest Filter function that
  * each symbol is tested against
  * @param {(symbolNode: TreeNode) => boolean} highlightTest Filter function that
@@ -637,22 +613,12 @@ const fetcher = new TravisFetcher('GoogleChromeLabs/travis-size-report');
  * @returns {Promise<TreeProgress>}
  */
 async function buildTree(
-  groupBy: string,
   filterTest: Filter,
   highlightTest: Filter,
   onProgress: (msg: TreeProgress) => void,
 ) {
   /** @type {Meta | null} Object from the first line of the data file */
   let meta: Meta | null = null;
-
-  const getPathMap: { [gropyBy: string]: (fileEntry: FileEntry) => string } = {
-    component(fileEntry) {
-      const component = getComponent(meta!, fileEntry);
-      const path = getSourcePath(fileEntry);
-      return `${component || '(No component)'}>${path}`;
-    },
-    source_path: getSourcePath,
-  };
 
   /**
    * Creates data to post to the UI thread. Defaults will be used for the root
@@ -701,10 +667,10 @@ async function buildTree(
         diffMode = meta.diff_mode;
 
         builder = new TreeBuilder({
-          getPath: getPathMap[groupBy],
+          getPath: getSourcePath,
           filterTest,
           highlightTest,
-          sep: groupBy === 'component' ? '>' : _PATH_SEP,
+          sep: _PATH_SEP,
           meta,
         });
 
@@ -736,7 +702,7 @@ async function buildTree(
 
 const actions = {
   load({ input, options }: { input: string | null; options: string }) {
-    const { groupBy, filterTest, highlightTest, url } = parseOptions(options);
+    const { filterTest, highlightTest, url } = parseOptions(options);
     if (input === 'from-url://') {
       if (url) {
         // Display the data from the `load_url` query parameter
@@ -748,7 +714,7 @@ const actions = {
       fetcher.setInput(input);
     }
 
-    return buildTree(groupBy, filterTest, highlightTest, progress => {
+    return buildTree(filterTest, highlightTest, progress => {
       // @ts-ignore
       self.postMessage(progress);
     });

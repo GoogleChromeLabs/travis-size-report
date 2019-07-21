@@ -87,9 +87,6 @@ export const displayInfocard = (() => {
         pathFragment = dom.createFragment([
           dom.textElement('span', 'Path: ', 'symbol-name-info'),
           document.createTextNode(node.srcPath),
-          document.createElement('br'),
-          dom.textElement('span', 'Component: ', 'symbol-name-info'),
-          document.createTextNode(node.component || '(No component)'),
         ]);
       } else {
         const path = node.idPath.slice(0, node.shortNameIndex);

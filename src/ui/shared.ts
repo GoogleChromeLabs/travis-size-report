@@ -24,8 +24,6 @@ interface TreeNode {
   idPath: string;
   /** Path to the source containing this symbol. */
   srcPath: string;
-  /** OWNERS Component for this symbol. */
-  component: string;
   /**
    * The name of the node is include in the idPath.
    * This index indicates where to start to slice the idPath to read the name.

@@ -125,10 +125,6 @@
 
       <fieldset>
         <legend class="subhead">Size options</legend>
-        <div class="checkbox-wrapper">
-          <input type="checkbox" id="methodcount" name="method_count" value="on" />
-          <label class="checkbox-label" for="methodcount">Method Count Mode</label>
-        </div>
         <p class="select-wrapper">
           <select id="byteunit" class="sel-big" name="byteunit" data-dynamic>
             <option value="B">B - bytes</option>
@@ -144,18 +140,6 @@
             Minimum size (bytes)
           </label>
         </p>
-      </fieldset>
-
-      <fieldset>
-        <legend class="subhead">Group symbols by</legend>
-        <div class="radio-wrapper">
-          <input type="radio" id="sourcepath" name="group_by" value="source_path" checked />
-          <label class="radio-label" for="sourcepath">Source path</label>
-        </div>
-        <div class="radio-wrapper">
-          <input type="radio" id="component" name="group_by" value="component" />
-          <label class="radio-label" for="component">Component</label>
-        </div>
       </fieldset>
 
       <fieldset>
@@ -281,11 +265,6 @@
           <label class="radio-label" for="uncompressedhighlight">Uncompressed .pak files</label>
         </div>
       </fieldset>
-
-      <p class="checkbox-wrapper">
-        <input type="checkbox" id="generatedfilter" name="generated_filter" value="on" />
-        <label class="checkbox-label" for="generatedfilter">Show only generated files</label>
-      </p>
     </form>
     <div class="symbols">
       <!-- Icons for symbols are stored here and cloned. -->

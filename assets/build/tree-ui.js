@@ -1,4 +1,4 @@
-import { f as form, s as state, g as getIconTemplate, a as getIconStyle, d as dom, b as getSizeContents, c as setSizeClasses } from './chunk-047543d9.js';
+import { f as form, s as state, g as getIconTemplate, a as getIconStyle, d as dom, b as getSizeContents, c as setSizeClasses } from './chunk-d41543af.js';
 
 // Copyright 2018 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
@@ -391,7 +391,7 @@ const newTreeElement = (() => {
             document.getElementById('faq').click();
         }
     });
-    import('./infocard-ui-8acf7663.js').then(({ displayInfocard }) => {
+    import('./infocard-ui-5903d663.js').then(({ displayInfocard }) => {
         _symbolTree.addEventListener('focusin', (event) => {
             const link = event.target;
             displayInfocard(_uiNodeData.get(link));

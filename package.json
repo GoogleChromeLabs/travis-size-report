@@ -7,7 +7,7 @@
     "sizereport": "build/bin.js"
   },
   "scripts": {
-    "clean": "rm -rf build",
+    "clean": "rm -rf build && rm -rf assets/build",
     "build": "npm run clean && rollup -c",
     "watch": "npm run clean && tsc --watch"
   },

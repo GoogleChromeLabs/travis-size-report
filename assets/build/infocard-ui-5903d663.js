@@ -1,4 +1,4 @@
-import { s as state, a as getIconStyle, b as getSizeContents, d as dom, c as setSizeClasses, g as getIconTemplate } from './chunk-047543d9.js';
+import { s as state, a as getIconStyle, b as getSizeContents, d as dom, c as setSizeClasses, g as getIconTemplate } from './chunk-d41543af.js';
 
 // Copyright 2018 The Chromium Authors. All rights reserved.
 const displayInfocard = (() => {
@@ -57,9 +57,6 @@ const displayInfocard = (() => {
                 pathFragment = dom.createFragment([
                     dom.textElement('span', 'Path: ', 'symbol-name-info'),
                     document.createTextNode(node.srcPath),
-                    document.createElement('br'),
-                    dom.textElement('span', 'Component: ', 'symbol-name-info'),
-                    document.createTextNode(node.component || '(No component)'),
                 ]);
             }
             else {
@@ -320,4 +317,4 @@ const displayInfocard = (() => {
 })();
 
 export { displayInfocard };
-//# sourceMappingURL=infocard-ui-8acf7663.js.map
+//# sourceMappingURL=infocard-ui-5903d663.js.map
