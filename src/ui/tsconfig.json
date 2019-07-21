@@ -1,0 +1,10 @@
+{
+  "extends": "../tsproject.json",
+  "compilerOptions": {
+    "outDir": "../../assets/build",
+    "module": "esnext",
+    "lib": ["esnext", "dom", "dom.iterable", "webworker"],
+    "skipLibCheck": true
+  },
+  "references": [{ "path": "../cli" }]
+}

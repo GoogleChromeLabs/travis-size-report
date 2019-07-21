@@ -18,14 +18,8 @@
     <link rel="stylesheet" href="options.css" />
     <link rel="icon" href="favicon.ico" sizes="16x16 32x32 256x256" type="image/x-icon" />
     <link rel="manifest" href="manifest.json" />
-    <script type="module" src="../build/ui/tree-ui.js"></script>
-    <script defer async>
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker
-          .register('sw.js')
-          .catch(() => console.warn('ServiceWorker not loaded.'));
-      }
-    </script>
+    <script defer src="build/shared.js"></script>
+    <script type="module" src="build/tree-ui.js"></script>
   </head>
 
   <body>

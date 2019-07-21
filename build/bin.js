@@ -3,7 +3,7 @@
 
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
-var path = _interopDefault(require('path'));
+var path = require('path');
 var minimist = _interopDefault(require('minimist'));
 require('util');
 require('fs');

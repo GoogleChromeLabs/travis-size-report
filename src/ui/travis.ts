@@ -1,5 +1,4 @@
-import { BuildChanges, getBuildInfo, getChanges } from '../compare-travis';
-import { _CODE_SYMBOL_TYPE, _OTHER_SYMBOL_TYPE } from './shared';
+import { BuildChanges, getBuildInfo, getChanges } from '../cli/compare-travis';
 import { FileEntry, Meta } from './tree-worker';
 
 function basename(path: string) {

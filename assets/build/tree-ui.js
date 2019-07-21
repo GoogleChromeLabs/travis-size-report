@@ -1,9 +1,9 @@
-import { f as form, s as state, g as getIconTemplate, a as getIconStyle, b as shortName, d as dom, _ as _DEX_METHOD_SYMBOL_TYPE, c as getSizeContents, e as setSizeClasses } from './chunk-22e71c90.js';
+import { f as form, s as state, g as getIconTemplate, a as getIconStyle, d as dom, b as getSizeContents, c as setSizeClasses } from './chunk-047543d9.js';
 
 // Copyright 2018 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-const _innerWorker = new Worker('../build/ui/tree-worker.js');
+const _innerWorker = new Worker('build/tree-worker.js');
 /**
  * We use a worker to keep large tree creation logic off the UI thread.
  * This class is used to interact with the worker.
@@ -391,7 +391,7 @@ const newTreeElement = (() => {
             document.getElementById('faq').click();
         }
     });
-    import('./infocard-ui-bd36b605.js').then(({ displayInfocard }) => {
+    import('./infocard-ui-8acf7663.js').then(({ displayInfocard }) => {
         _symbolTree.addEventListener('focusin', (event) => {
             const link = event.target;
             displayInfocard(_uiNodeData.get(link));

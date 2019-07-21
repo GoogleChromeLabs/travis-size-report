@@ -2,17 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {
-  GetSizeResult,
-  TreeNode,
-  types,
-  _BYTE_UNITS,
-  _DEX_METHOD_SYMBOL_TYPE,
-  _LOCALE,
-  _OTHER_SYMBOL_TYPE,
-  _TYPE_STATE_KEY,
-} from './shared';
-
 /**
  * @fileoverview
  * Methods for manipulating the state and the DOM of the page

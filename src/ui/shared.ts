@@ -11,7 +11,7 @@
  * Node object used to represent the file tree. Can
  * represent either a container or a symbol.
  */
-export interface TreeNode {
+interface TreeNode {
   /**
    * Child tree nodes. Null values indicate
    * that there are children, but that they haven't been loaded in yet. Empty
@@ -61,7 +61,7 @@ interface TreeNodeChildStats {
   highlight: number;
 }
 
-export interface TreeProgress {
+interface TreeProgress {
   /** Root node and its direct children. */
   root: TreeNode;
   /** Number from (0-1] to represent percentage. */
@@ -78,7 +78,7 @@ export interface TreeProgress {
   error?: string;
 }
 
-export interface GetSizeResult {
+interface GetSizeResult {
   /** Description of the size, shown as hover text */
   description: string;
   /**
@@ -90,13 +90,13 @@ export interface GetSizeResult {
   value: number;
 }
 
-export type GetSize = (node: TreeNode, unit: string) => GetSizeResult;
+type GetSize = (node: TreeNode, unit: string) => GetSizeResult;
 
 /**
  * Abberivated keys used by FileEntrys in the JSON data file. These must match
  * _COMPACT_*_KEY variables in html_report.py.
  */
-export const _KEYS = Object.freeze({
+const _KEYS = Object.freeze({
   COMPONENT_INDEX: 'c' as const,
   SOURCE_PATH: 'p' as const,
   FILE_SYMBOLS: 's' as const,
@@ -109,7 +109,7 @@ export const _KEYS = Object.freeze({
 });
 
 /** Abberivated keys used by FileEntrys in the JSON data file. */
-export const _FLAGS = Object.freeze({
+const _FLAGS = Object.freeze({
   ANONYMOUS: 2 ** 0,
   STARTUP: 2 ** 1,
   UNLIKELY: 2 ** 2,
@@ -126,7 +126,7 @@ export const _FLAGS = Object.freeze({
  * @enum {number} Various byte units and the corresponding amount of bytes
  * that one unit represents.
  */
-export const _BYTE_UNITS = Object.freeze({
+const _BYTE_UNITS = Object.freeze({
   GiB: 1024 ** 3,
   MiB: 1024 ** 2,
   KiB: 1024 ** 1,
@@ -136,38 +136,38 @@ export const _BYTE_UNITS = Object.freeze({
 /**
  * Special types used by containers, such as folders and files.
  */
-export const _CONTAINER_TYPES = {
+const _CONTAINER_TYPES = {
   DIRECTORY: 'D' as const,
   COMPONENT: 'C' as const,
   FILE: 'F' as const,
   JAVA_CLASS: 'J' as const,
 };
-export const _CONTAINER_TYPE_SET = new Set(Object.values(_CONTAINER_TYPES));
+const _CONTAINER_TYPE_SET = new Set(Object.values(_CONTAINER_TYPES));
 
 /** Type for a code/.text symbol */
-export const _CODE_SYMBOL_TYPE = 't';
+const _CODE_SYMBOL_TYPE = 't';
 /** Type for a dex method symbol */
-export const _DEX_METHOD_SYMBOL_TYPE = 'm';
+const _DEX_METHOD_SYMBOL_TYPE = 'm';
 /** Type for a non-method dex symbol */
-export const _DEX_SYMBOL_TYPE = 'x';
+const _DEX_SYMBOL_TYPE = 'x';
 /** Type for an 'other' symbol */
-export const _OTHER_SYMBOL_TYPE = 'o';
+const _OTHER_SYMBOL_TYPE = 'o';
 
 /** Set of all known symbol types. Container types are not included. */
-export const _SYMBOL_TYPE_SET = new Set('bdrtRxmopP');
+const _SYMBOL_TYPE_SET = new Set('bdrtRxmopP');
 
 /** Name used by a directory created to hold symbols with no name. */
-export const _NO_NAME = '(No path)';
+const _NO_NAME = '(No path)';
 
 /** Key where type is stored in the query string state. */
-export const _TYPE_STATE_KEY = 'type';
+const _TYPE_STATE_KEY = 'type';
 
-export const _LOCALE = (navigator.languages || navigator.language) as string | string[];
+const _LOCALE = (navigator.languages || navigator.language) as string | string[];
 
 /**
  * Returns shortName for a tree node.
  */
-export function shortName(node: TreeNode) {
+function shortName(node: TreeNode) {
   return node.idPath.slice(node.shortNameIndex);
 }
 
@@ -178,7 +178,7 @@ export function shortName(node: TreeNode) {
  * @param typesList All values associated with the "type" key in the
  * query string.
  */
-export function* types(typesList: string[]) {
+function* types(typesList: string[]) {
   for (const typeOrTypes of typesList) {
     for (const typeChar of typeOrTypes) {
       yield typeChar;
@@ -193,7 +193,7 @@ export function* types(typesList: string[]) {
  * @param {number} wait Time to wait before func can be called again (ms).
  * @returns {T}
  */
-export function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T {
+function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T {
   let timeoutId: number;
   function debounced(...args: Parameters<T>) {
     clearTimeout(timeoutId);
@@ -207,6 +207,26 @@ export function debounce<T extends (...args: any[]) => void>(func: T, wait: numb
  * @param flag Bit flag from `_FLAGS`
  * @param symbolNode
  */
-export function hasFlag(flag: number, symbolNode: TreeNode) {
+function hasFlag(flag: number, symbolNode: TreeNode) {
   return (symbolNode.flags & flag) === flag;
 }
+
+Object.assign(self, {
+  _KEYS,
+  _FLAGS,
+  _BYTE_UNITS,
+  _CONTAINER_TYPES,
+  _CONTAINER_TYPE_SET,
+  _CODE_SYMBOL_TYPE,
+  _DEX_METHOD_SYMBOL_TYPE,
+  _DEX_SYMBOL_TYPE,
+  _OTHER_SYMBOL_TYPE,
+  _SYMBOL_TYPE_SET,
+  _NO_NAME,
+  _TYPE_STATE_KEY,
+  _LOCALE,
+  shortName,
+  types,
+  debounce,
+  hasFlag,
+});

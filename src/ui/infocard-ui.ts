@@ -8,7 +8,6 @@
  * symbols as the user hovers or focuses on them.
  */
 
-import { hasFlag, shortName, TreeNode, _CONTAINER_TYPE_SET, _FLAGS, _LOCALE } from './shared';
 import {
   dom,
   getIconStyle,
@@ -379,7 +378,7 @@ export const displayInfocard = (() => {
    * @param {TreeNode} node
    */
   function displayInfocard(node: TreeNode) {
-    if (_CONTAINER_TYPE_SET.has(node.type[0])) {
+    if (_CONTAINER_TYPE_SET.has(node.type[0] as any)) {
       _containerInfo.updateInfocard(node);
       _containerInfo.setHidden(false);
       _symbolInfo.setHidden(true);

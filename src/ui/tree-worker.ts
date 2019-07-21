@@ -2,22 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {
-  debounce,
-  hasFlag,
-  shortName,
-  types,
-  TreeNode,
-  TreeProgress,
-  _CONTAINER_TYPES,
-  _DEX_METHOD_SYMBOL_TYPE,
-  _DEX_SYMBOL_TYPE,
-  _FLAGS,
-  _KEYS,
-  _NO_NAME,
-  _SYMBOL_TYPE_SET,
-  _TYPE_STATE_KEY,
-} from './shared';
+importScripts('./shared.js');
+
 import { TravisFetcher } from './travis';
 
 /**

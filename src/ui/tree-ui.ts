@@ -8,7 +8,6 @@
  * Binary Size Analysis HTML report.
  */
 
-import { shortName, TreeNode, TreeProgress, _DEX_METHOD_SYMBOL_TYPE } from './shared';
 import { treeReady, worker } from './start-worker';
 import {
   dom,

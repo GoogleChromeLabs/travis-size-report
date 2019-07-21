@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { TreeProgress, TreeNode } from './shared';
-
-const _innerWorker = new Worker('../build/ui/tree-worker.js');
+const _innerWorker = new Worker('build/tree-worker.js');
 
 /**
  * We use a worker to keep large tree creation logic off the UI thread.

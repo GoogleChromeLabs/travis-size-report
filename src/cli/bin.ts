@@ -1,4 +1,4 @@
-import path from 'path';
+import { join } from 'path';
 import minimist from 'minimist';
 import sizeReport, { SizeReportOptions } from '.';
 
@@ -48,10 +48,7 @@ let config: Partial<Config> = {};
 
 // Read arguments from config file
 if (configFile) {
-  config = require(path.join(
-    process.cwd(),
-    configFile === true ? 'sizereport.config.js' : configFile,
-  ));
+  config = require(join(process.cwd(), configFile === true ? 'sizereport.config.js' : configFile));
 }
 
 // Override config file with command line arguments

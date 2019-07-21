@@ -1,4 +1,4 @@
-import { h as _FLAGS, i as _LOCALE, s as state, a as getIconStyle, j as _CONTAINER_TYPE_SET, c as getSizeContents, d as dom, e as setSizeClasses, b as shortName, k as hasFlag, g as getIconTemplate } from './chunk-22e71c90.js';
+import { s as state, a as getIconStyle, b as getSizeContents, d as dom, c as setSizeClasses, g as getIconTemplate } from './chunk-047543d9.js';
 
 // Copyright 2018 The Chromium Authors. All rights reserved.
 const displayInfocard = (() => {
@@ -320,4 +320,4 @@ const displayInfocard = (() => {
 })();
 
 export { displayInfocard };
-//# sourceMappingURL=infocard-ui-bd36b605.js.map
+//# sourceMappingURL=infocard-ui-8acf7663.js.map

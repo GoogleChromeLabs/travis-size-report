@@ -1,14 +1,14 @@
 {
   "compilerOptions": {
+    "composite": true,
     "strict": true,
     "target": "esnext",
-    "outDir": "build",
+    "outDir": "../../assets/build",
     "declaration": true,
     "module": "esnext",
     "esModuleInterop": true,
     "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "lib": ["esnext", "dom", "webworker", "dom.iterable"]
+    "lib": []
   },
-  "include": ["src/**/*", "rollup.config.js"]
+  "references": [{ "path": "./cli" }, { "path": "./ui" }]
 }
