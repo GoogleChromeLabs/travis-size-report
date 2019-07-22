@@ -130,6 +130,7 @@ const _CONTAINER_TYPES = {
 };
 const _CONTAINER_TYPE_SET = new Set(Object.values(_CONTAINER_TYPES));
 
+const _SYMBOL_CONTAINER_TYPE = 'S';
 /** Type for a code/.text symbol */
 const _CODE_SYMBOL_TYPE = 't';
 /** Type for a dex method symbol */
@@ -193,6 +194,7 @@ Object.assign(self, {
   _BYTE_UNITS,
   _CONTAINER_TYPES,
   _CONTAINER_TYPE_SET,
+  _SYMBOL_CONTAINER_TYPE,
   _CODE_SYMBOL_TYPE,
   _DEX_METHOD_SYMBOL_TYPE,
   _DEX_SYMBOL_TYPE,

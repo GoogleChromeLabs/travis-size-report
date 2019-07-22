@@ -152,7 +152,7 @@ class TreeBuilder {
     this.rootNode = createNode({
       idPath: this._sep,
       shortNameIndex: 0,
-      type: this._containerType(this._sep),
+      type: _CONTAINER_TYPES.DIRECTORY,
     });
 
     /**
@@ -181,7 +181,8 @@ class TreeBuilder {
       const { parent } = node;
 
       // Track the size of `lastBiggestType` for comparisons.
-      let [containerType, lastBiggestType] = parent.type;
+      let containerType = parent.type[0];
+      let lastBiggestType = parent.type.slice(1);
       let lastBiggestSize = 0;
       const lastBiggestStats = parent.childStats[lastBiggestType];
       if (lastBiggestStats) {
@@ -200,7 +201,7 @@ class TreeBuilder {
         parentStat.count += stat.count;
 
         const absSize = Math.abs(parentStat.size);
-        if (absSize > lastBiggestSize) {
+        if (absSize >= lastBiggestSize) {
           lastBiggestType = type;
           lastBiggestSize = absSize;
         }
@@ -323,15 +324,6 @@ class TreeBuilder {
   }
 
   /**
-   * Returns the container type for a parent node.
-   * @param {string} childIdPath
-   * @private
-   */
-  private _containerType(childIdPath: string) {
-    return _CONTAINER_TYPES.DIRECTORY;
-  }
-
-  /**
    * Helper to return the parent of the given node. The parent is determined
    * based in the idPath and the path seperator. If the parent doesn't yet
    * exist, one is created and stored in the parents map.
@@ -402,7 +394,7 @@ class TreeBuilder {
         srcPath,
         shortNameIndex: idPath.length + 1,
         size,
-        type,
+        type: _SYMBOL_CONTAINER_TYPE + type,
         childStats: {
           [type]: {
             size,
@@ -523,10 +515,11 @@ function parseOptions(options: string) {
     filters.push(s => Math.abs(s.size) >= minSymbolSize);
   }
 
-  // Ensure the symbol size wasn't filtered out
+  /*
   if (typeFilter.size < _SYMBOL_TYPE_SET.size) {
     filters.push(s => typeFilter.has(s.type));
   }
+  */
 
   // Search symbol names using regex
   if (includeRegex) {

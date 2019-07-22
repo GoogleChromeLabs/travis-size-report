@@ -1,4 +1,4 @@
-import { s as state, a as getIconStyle, b as getSizeContents, d as dom, c as setSizeClasses, g as getIconTemplate } from './chunk-68a25cd7.js';
+import { s as state, g as getIconTemplate, a as getIconStyle, b as getSizeContents, d as dom, c as setSizeClasses } from './chunk.js';
 
 // Copyright 2018 The Chromium Authors. All rights reserved.
 const displayInfocard = (() => {
@@ -10,6 +10,7 @@ const displayInfocard = (() => {
              * Tracked to avoid re-cloning the same icon.
              */
             this._lastType = '';
+            this._lastContainer = '';
             this._infocard = document.getElementById(id);
             this._sizeInfo = this._infocard.querySelector('.size-info');
             this._pathInfo = this._infocard.querySelector('.path-info');
@@ -83,14 +84,16 @@ const displayInfocard = (() => {
          * @param {TreeNode} node
          */
         _updateInfocard(node) {
-            const type = node.type[0];
+            const container = node.type[0];
+            const type = node.type.slice(1);
             // Update DOM
             this._updateSize(node);
             this._updatePaths(node);
-            if (type !== this._lastType) {
+            if (container !== this._lastContainer && type !== this._lastType) {
                 // No need to create a new icon if it is identical.
-                const icon = getIconTemplate(type);
+                const icon = getIconTemplate(container, type);
                 this._setTypeContent(icon);
+                this._lastContainer = container;
                 this._lastType = type;
             }
         }
@@ -118,20 +121,14 @@ const displayInfocard = (() => {
     class ContainerInfocard extends Infocard {
         constructor(id) {
             super(id);
+            /**
+             * Rows in the container
+             * infocard that represent a particular symbol type.
+             */
+            this._infoRows = {};
             this._tableBody = this._infocard.querySelector('tbody');
             this._ctx = this._infocard.querySelector('canvas').getContext('2d');
-            this._infoRows = {
-                b: this._tableBody.querySelector('.bss-info'),
-                d: this._tableBody.querySelector('.data-info'),
-                r: this._tableBody.querySelector('.rodata-info'),
-                t: this._tableBody.querySelector('.text-info'),
-                R: this._tableBody.querySelector('.relro-info'),
-                x: this._tableBody.querySelector('.dexnon-info'),
-                m: this._tableBody.querySelector('.dex-info'),
-                p: this._tableBody.querySelector('.pak-info'),
-                P: this._tableBody.querySelector('.paknon-info'),
-                o: this._tableBody.querySelector('.other-info'),
-            };
+            this._rowTemplate = this._infocard.querySelector('#infocard-row');
             /**
              * Update the DPI of the canvas for zoomed in and high density screens.
              */
@@ -236,9 +233,18 @@ const displayInfocard = (() => {
             let angleStart = 0;
             for (const [type, stats] of statsEntries) {
                 delete extraRows[type];
+                let row = this._infoRows[type];
+                if (!row) {
+                    const icon = getIconTemplate(_SYMBOL_CONTAINER_TYPE, type, false);
+                    const newRow = document.importNode(this._rowTemplate.content, true);
+                    newRow.querySelector('.icon-container').appendChild(icon);
+                    newRow.querySelector('th').textContent = `.${type}`;
+                    row = newRow.querySelector('tr');
+                    this._infoRows[type] = row;
+                }
                 const { color } = getIconStyle(type);
                 const percentage = stats.size / totalSize;
-                this._updateBreakdownRow(this._infoRows[type], stats, percentage);
+                this._updateBreakdownRow(row, stats, percentage);
                 const arcLength = Math.abs(percentage) * 2 * Math.PI;
                 if (arcLength > 0) {
                     const angleEnd = angleStart + arcLength;
@@ -278,4 +284,4 @@ const displayInfocard = (() => {
 })();
 
 export { displayInfocard };
-//# sourceMappingURL=infocard-ui-5cfe52b8.js.map
+//# sourceMappingURL=infocard-ui.js.map

@@ -1,4 +1,4 @@
-import { f as form, s as state, g as getIconTemplate, a as getIconStyle, d as dom, b as getSizeContents, c as setSizeClasses } from './chunk-68a25cd7.js';
+import { f as form, s as state, g as getIconTemplate, a as getIconStyle, d as dom, b as getSizeContents, c as setSizeClasses } from './chunk.js';
 
 // Copyright 2018 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
@@ -353,10 +353,11 @@ const newTreeElement = (() => {
         const link = element.querySelector('.node');
         _uiNodeData.set(link, Object.freeze(data));
         // Icons are predefined in the HTML through hidden SVG elements
-        const type = data.type[0];
-        const icon = getIconTemplate(type);
+        const container = data.type[0];
+        const type = data.type.slice(1);
+        const icon = getIconTemplate(container, type);
         if (!isLeaf) {
-            const symbolStyle = getIconStyle(data.type[1]);
+            const symbolStyle = getIconStyle(type);
             icon.setAttribute('fill', symbolStyle.color);
         }
         // Insert an SVG icon at the start of the link to represent type
@@ -385,7 +386,7 @@ const newTreeElement = (() => {
             document.getElementById('faq').click();
         }
     });
-    import('./infocard-ui-5cfe52b8.js').then(({ displayInfocard }) => {
+    import('./infocard-ui.js').then(({ displayInfocard }) => {
         _symbolTree.addEventListener('focusin', (event) => {
             const link = event.target;
             displayInfocard(_uiNodeData.get(link));
@@ -424,7 +425,6 @@ const newTreeElement = (() => {
         }
     }
     const _symbolTree = document.querySelector('#symboltree');
-    const _fileUpload = document.querySelector('#upload');
     const _dataUrlInput = form.elements.namedItem('load_url');
     const _progress = new ProgressBar('#progress');
     /**
@@ -462,16 +462,6 @@ const newTreeElement = (() => {
     }
     treeReady.then(displayTree);
     worker.setOnProgressHandler(displayTree);
-    _fileUpload.addEventListener('change', event => {
-        const input = event.currentTarget;
-        const file = input.files.item(0);
-        const fileUrl = URL.createObjectURL(file);
-        _dataUrlInput.value = '';
-        _dataUrlInput.dispatchEvent(new Event('change'));
-        worker.loadTree(fileUrl).then(displayTree);
-        // Clean up afterwards so new files trigger event
-        input.value = '';
-    });
     form.addEventListener('change', event => {
         const input = event.target;
         // Update the tree when options change.

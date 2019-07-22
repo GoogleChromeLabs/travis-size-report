@@ -98,6 +98,9 @@ async function getChanges(previousBuildInfo, buildInfo, findRenamed) {
 function basename(path) {
     return path.substring(path.lastIndexOf('/') + 1);
 }
+function extname(path) {
+    return path.substring(path.lastIndexOf('.') + 1);
+}
 function transformChanges(changes) {
     const total = changes.newItems.length +
         changes.deletedItems.length +
@@ -113,7 +116,7 @@ function transformChanges(changes) {
                     n: basename(data.path),
                     b: data.size,
                     g: data.gzipSize,
-                    t: _CODE_SYMBOL_TYPE,
+                    t: extname(data.path),
                     u: 1,
                 },
             ],
@@ -127,7 +130,7 @@ function transformChanges(changes) {
                     n: basename(data.path),
                     b: -data.size,
                     g: -data.gzipSize,
-                    t: _CODE_SYMBOL_TYPE,
+                    t: extname(data.path),
                     u: -1,
                 },
             ],
@@ -141,7 +144,7 @@ function transformChanges(changes) {
                     n: basename(data.path),
                     b: 0,
                     g: 0,
-                    t: _CODE_SYMBOL_TYPE,
+                    t: extname(data.path),
                     u: 1,
                 },
             ],
@@ -155,7 +158,7 @@ function transformChanges(changes) {
                     n: basename(newData.path),
                     b: newData.size - oldData.size,
                     g: newData.gzipSize - oldData.gzipSize,
-                    t: _CODE_SYMBOL_TYPE,
+                    t: extname(newData.path),
                     u: 1,
                 },
             ],
@@ -165,14 +168,27 @@ function transformChanges(changes) {
 }
 class TravisFetcher {
     constructor(input) {
+        this.branch = 'master';
         this.setInput(input);
     }
     setInput(input) {
-        this._input = input.split('/');
+        const parts = input.split('/');
+        if (parts.length < 2) {
+            throw new TypeError(`Invalid input. Must be in format user/repo.`);
+        }
+        else {
+            this.user = parts[0];
+            this.repo = parts[1];
+            if (parts.length >= 3) {
+                this.branch = parts.slice(2).join('/');
+            }
+            else {
+                this.branch = 'master';
+            }
+        }
     }
     async *newlineDelimtedJsonStream() {
-        const [user, repo] = this._input;
-        const [currentBuildInfo, previousBuildInfo] = await getBuildInfo(user, repo, 'master', 2);
+        const [currentBuildInfo, previousBuildInfo] = await getBuildInfo(this.user, this.repo, this.branch, 2);
         if (!previousBuildInfo) {
             throw new Error(`Couldn't find previous build info`);
         }
@@ -265,7 +281,7 @@ class TreeBuilder {
         this.rootNode = createNode({
             idPath: this._sep,
             shortNameIndex: 0,
-            type: this._containerType(this._sep),
+            type: _CONTAINER_TYPES.DIRECTORY,
         });
         /**
          * Regex used to split the `idPath` when finding nodes. Equivalent to
@@ -289,7 +305,8 @@ class TreeBuilder {
         while (node.parent != null) {
             const { parent } = node;
             // Track the size of `lastBiggestType` for comparisons.
-            let [containerType, lastBiggestType] = parent.type;
+            let containerType = parent.type[0];
+            let lastBiggestType = parent.type.slice(1);
             let lastBiggestSize = 0;
             const lastBiggestStats = parent.childStats[lastBiggestType];
             if (lastBiggestStats) {
@@ -305,7 +322,7 @@ class TreeBuilder {
                 parentStat.gzipSize += stat.gzipSize;
                 parentStat.count += stat.count;
                 const absSize = Math.abs(parentStat.size);
-                if (absSize > lastBiggestSize) {
+                if (absSize >= lastBiggestSize) {
                     lastBiggestType = type;
                     lastBiggestSize = absSize;
                 }
@@ -415,14 +432,6 @@ class TreeBuilder {
         }));
     }
     /**
-     * Returns the container type for a parent node.
-     * @param {string} childIdPath
-     * @private
-     */
-    _containerType(childIdPath) {
-        return _CONTAINER_TYPES.DIRECTORY;
-    }
-    /**
      * Helper to return the parent of the given node. The parent is determined
      * based in the idPath and the path seperator. If the parent doesn't yet
      * exist, one is created and stored in the parents map.
@@ -484,7 +493,7 @@ class TreeBuilder {
         for (const symbol of fileEntry[_KEYS.FILE_SYMBOLS]) {
             const size = symbol[_KEYS.SIZE];
             const gzipSize = symbol[_KEYS.GZIP_SIZE];
-            const count = (_KEYS.COUNT in symbol ? symbol[_KEYS.COUNT] : defaultCount);
+            const count = _KEYS.COUNT in symbol ? symbol[_KEYS.COUNT] : defaultCount;
             const type = symbol[_KEYS.TYPE];
             const symbolNode = createNode({
                 // Join file path to symbol name with a ":"
@@ -492,7 +501,7 @@ class TreeBuilder {
                 srcPath,
                 shortNameIndex: idPath.length + 1,
                 size,
-                type,
+                type: _SYMBOL_CONTAINER_TYPE + type,
                 childStats: {
                     [type]: {
                         size,
@@ -597,10 +606,11 @@ function parseOptions(options) {
     if (minSymbolSize > 0) {
         filters.push(s => Math.abs(s.size) >= minSymbolSize);
     }
-    // Ensure the symbol size wasn't filtered out
+    /*
     if (typeFilter.size < _SYMBOL_TYPE_SET.size) {
-        filters.push(s => typeFilter.has(s.type));
+      filters.push(s => typeFilter.has(s.type));
     }
+    */
     // Search symbol names using regex
     if (includeRegex) {
         try {

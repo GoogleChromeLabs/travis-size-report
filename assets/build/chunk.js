@@ -228,24 +228,27 @@ function _makeIconTemplateGetter() {
     const iconInfoCache = new Map();
     /**
      * Returns the SVG icon template element corresponding to the given type.
-     * @param {string} type Symbol type character.
+     * @param {string} container Container type character.
+     * @param {string} type Symbol type (file extension).
      * @param {boolean} readonly If true, the original template is returned.
      * If false, a copy is returned that can be modified.
      * @returns {SVGSVGElement}
      */
-    function getIconTemplate(type, readonly = false) {
-        const iconTemplate = symbolIcons[type] || symbolIcons[_OTHER_SYMBOL_TYPE];
+    function getIconTemplate(container, type, readonly = false) {
+        const iconTemplate = container === _SYMBOL_CONTAINER_TYPE
+            ? symbolIcons[type] || symbolIcons[_OTHER_SYMBOL_TYPE]
+            : symbolIcons[container];
         return readonly ? iconTemplate : iconTemplate.cloneNode(true);
     }
     /**
      * Returns style info about SVG icon template element corresponding to the
      * given type.
-     * @param {string} type Symbol type character.
+     * @param {string} type Symbol type character / file extension.
      */
     function getIconStyle(type) {
         let info = iconInfoCache.get(type);
         if (info == null) {
-            const icon = getIconTemplate(type, true);
+            const icon = getIconTemplate(_SYMBOL_CONTAINER_TYPE, type, true);
             info = {
                 color: icon.getAttribute('fill'),
                 description: icon.querySelector('title').textContent,
@@ -324,4 +327,4 @@ const { getSizeContents, setSizeClasses } = _makeSizeTextGetter();
 _startListeners();
 
 export { getIconStyle as a, getSizeContents as b, setSizeClasses as c, dom as d, form as f, getIconTemplate as g, state as s };
-//# sourceMappingURL=chunk-68a25cd7.js.map
+//# sourceMappingURL=chunk.js.map

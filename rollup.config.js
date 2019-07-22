@@ -44,6 +44,7 @@ const uiConfig = {
   input: 'src/ui/tree-ui.ts',
   output: {
     dir: 'assets/build',
+    chunkFileNames: '[name].js',
     format: 'esm',
     sourcemap: true,
   },

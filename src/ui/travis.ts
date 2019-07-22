@@ -6,6 +6,10 @@ function basename(path: string) {
   return path.substring(path.lastIndexOf('/') + 1);
 }
 
+function extname(path: string) {
+  return path.substring(path.lastIndexOf('.') + 1);
+}
+
 function transformChanges(changes: BuildChanges): { meta: Meta; entries: FileEntry[] } {
   const total =
     changes.newItems.length +
@@ -23,7 +27,7 @@ function transformChanges(changes: BuildChanges): { meta: Meta; entries: FileEnt
           n: basename(data.path),
           b: data.size,
           g: data.gzipSize,
-          t: _CODE_SYMBOL_TYPE,
+          t: extname(data.path),
           u: 1,
         },
       ],
@@ -37,7 +41,7 @@ function transformChanges(changes: BuildChanges): { meta: Meta; entries: FileEnt
           n: basename(data.path),
           b: -data.size,
           g: -data.gzipSize,
-          t: _CODE_SYMBOL_TYPE,
+          t: extname(data.path),
           u: -1,
         },
       ],
@@ -51,7 +55,7 @@ function transformChanges(changes: BuildChanges): { meta: Meta; entries: FileEnt
           n: basename(data.path),
           b: 0,
           g: 0,
-          t: _CODE_SYMBOL_TYPE,
+          t: extname(data.path),
           u: 1,
         },
       ],
@@ -65,7 +69,7 @@ function transformChanges(changes: BuildChanges): { meta: Meta; entries: FileEnt
           n: basename(newData.path),
           b: newData.size - oldData.size,
           g: newData.gzipSize - oldData.gzipSize,
-          t: _CODE_SYMBOL_TYPE,
+          t: extname(newData.path),
           u: 1,
         },
       ],
@@ -76,19 +80,36 @@ function transformChanges(changes: BuildChanges): { meta: Meta; entries: FileEnt
 }
 
 export class TravisFetcher {
-  private _input!: [string, string];
+  private user?: string;
+  private repo?: string;
+  private branch = 'master';
 
   constructor(input: string) {
     this.setInput(input);
   }
 
   setInput(input: string) {
-    this._input = input.split('/') as [string, string];
+    const parts = input.split('/');
+    if (parts.length < 2) {
+      throw new TypeError(`Invalid input. Must be in format user/repo.`);
+    } else {
+      this.user = parts[0];
+      this.repo = parts[1];
+      if (parts.length >= 3) {
+        this.branch = parts.slice(2).join('/');
+      } else {
+        this.branch = 'master';
+      }
+    }
   }
 
   async *newlineDelimtedJsonStream() {
-    const [user, repo] = this._input;
-    const [currentBuildInfo, previousBuildInfo] = await getBuildInfo(user, repo, 'master', 2);
+    const [currentBuildInfo, previousBuildInfo] = await getBuildInfo(
+      this.user!,
+      this.repo!,
+      this.branch,
+      2,
+    );
 
     if (!previousBuildInfo) {
       throw new Error(`Couldn't find previous build info`);

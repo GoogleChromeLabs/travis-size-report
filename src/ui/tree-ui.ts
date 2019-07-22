@@ -322,10 +322,11 @@ const newTreeElement = (() => {
     _uiNodeData.set(link, Object.freeze(data));
 
     // Icons are predefined in the HTML through hidden SVG elements
-    const type = data.type[0];
-    const icon = getIconTemplate(type);
+    const container = data.type[0];
+    const type = data.type.slice(1);
+    const icon = getIconTemplate(container, type);
     if (!isLeaf) {
-      const symbolStyle = getIconStyle(data.type[1])!;
+      const symbolStyle = getIconStyle(type)!;
       icon.setAttribute('fill', symbolStyle.color);
     }
     // Insert an SVG icon at the start of the link to represent type
@@ -410,7 +411,6 @@ const newTreeElement = (() => {
   }
 
   const _symbolTree = document.querySelector<HTMLUListElement>('#symboltree')!;
-  const _fileUpload = document.querySelector<HTMLInputElement>('#upload')!;
   const _dataUrlInput = form.elements.namedItem('load_url') as HTMLInputElement;
   const _progress = new ProgressBar('#progress');
 
@@ -452,19 +452,6 @@ const newTreeElement = (() => {
 
   treeReady.then(displayTree);
   worker.setOnProgressHandler(displayTree);
-
-  _fileUpload.addEventListener('change', event => {
-    const input = event.currentTarget as HTMLInputElement;
-    const file = input.files!.item(0);
-    const fileUrl = URL.createObjectURL(file);
-
-    _dataUrlInput.value = '';
-    _dataUrlInput.dispatchEvent(new Event('change'));
-
-    worker.loadTree(fileUrl).then(displayTree);
-    // Clean up afterwards so new files trigger event
-    input.value = '';
-  });
 
   form.addEventListener('change', event => {
     const input = event.target as HTMLElement;

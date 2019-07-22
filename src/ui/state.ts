@@ -246,25 +246,29 @@ function _makeIconTemplateGetter() {
 
   /**
    * Returns the SVG icon template element corresponding to the given type.
-   * @param {string} type Symbol type character.
+   * @param {string} container Container type character.
+   * @param {string} type Symbol type (file extension).
    * @param {boolean} readonly If true, the original template is returned.
    * If false, a copy is returned that can be modified.
    * @returns {SVGSVGElement}
    */
-  function getIconTemplate(type: string, readonly = false): SVGSVGElement {
-    const iconTemplate = symbolIcons[type] || symbolIcons[_OTHER_SYMBOL_TYPE];
+  function getIconTemplate(container: string, type: string, readonly = false): SVGSVGElement {
+    const iconTemplate =
+      container === _SYMBOL_CONTAINER_TYPE
+        ? symbolIcons[type] || symbolIcons[_OTHER_SYMBOL_TYPE]
+        : symbolIcons[container];
     return readonly ? iconTemplate : (iconTemplate.cloneNode(true) as SVGSVGElement);
   }
 
   /**
    * Returns style info about SVG icon template element corresponding to the
    * given type.
-   * @param {string} type Symbol type character.
+   * @param {string} type Symbol type character / file extension.
    */
   function getIconStyle(type: string) {
     let info = iconInfoCache.get(type);
     if (info == null) {
-      const icon = getIconTemplate(type, true);
+      const icon = getIconTemplate(_SYMBOL_CONTAINER_TYPE, type, true);
       info = {
         color: icon.getAttribute('fill')!,
         description: icon.querySelector('title')!.textContent!,

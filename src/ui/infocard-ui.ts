@@ -32,6 +32,7 @@ export const displayInfocard = (() => {
      * Tracked to avoid re-cloning the same icon.
      */
     private _lastType = '';
+    private _lastContainer = '';
 
     constructor(id: string) {
       this._infocard = document.getElementById(id)!;
@@ -114,15 +115,17 @@ export const displayInfocard = (() => {
      * @param {TreeNode} node
      */
     _updateInfocard(node: TreeNode) {
-      const type = node.type[0];
+      const container = node.type[0];
+      const type = node.type.slice(1);
 
       // Update DOM
       this._updateSize(node);
       this._updatePaths(node);
-      if (type !== this._lastType) {
+      if (container !== this._lastContainer && type !== this._lastType) {
         // No need to create a new icon if it is identical.
-        const icon = getIconTemplate(type);
+        const icon = getIconTemplate(container, type);
         this._setTypeContent(icon);
+        this._lastContainer = container;
         this._lastType = type;
       }
     }
@@ -153,30 +156,19 @@ export const displayInfocard = (() => {
   class ContainerInfocard extends Infocard {
     private _tableBody: HTMLTableSectionElement;
     private _ctx: CanvasRenderingContext2D;
+    private _rowTemplate: HTMLTemplateElement;
 
     /**
      * Rows in the container
      * infocard that represent a particular symbol type.
      */
-    private _infoRows: { [type: string]: HTMLTableRowElement };
+    private _infoRows: { [type: string]: HTMLTableRowElement } = {};
 
     constructor(id: string) {
       super(id);
       this._tableBody = this._infocard.querySelector('tbody')!;
       this._ctx = this._infocard.querySelector('canvas')!.getContext('2d')!;
-
-      this._infoRows = {
-        b: this._tableBody.querySelector<HTMLTableRowElement>('.bss-info')!,
-        d: this._tableBody.querySelector<HTMLTableRowElement>('.data-info')!,
-        r: this._tableBody.querySelector<HTMLTableRowElement>('.rodata-info')!,
-        t: this._tableBody.querySelector<HTMLTableRowElement>('.text-info')!,
-        R: this._tableBody.querySelector<HTMLTableRowElement>('.relro-info')!,
-        x: this._tableBody.querySelector<HTMLTableRowElement>('.dexnon-info')!,
-        m: this._tableBody.querySelector<HTMLTableRowElement>('.dex-info')!,
-        p: this._tableBody.querySelector<HTMLTableRowElement>('.pak-info')!,
-        P: this._tableBody.querySelector<HTMLTableRowElement>('.paknon-info')!,
-        o: this._tableBody.querySelector<HTMLTableRowElement>('.other-info')!,
-      };
+      this._rowTemplate = this._infocard.querySelector<HTMLTemplateElement>('#infocard-row')!;
 
       /**
        * Update the DPI of the canvas for zoomed in and high density screens.
@@ -298,9 +290,19 @@ export const displayInfocard = (() => {
       let angleStart = 0;
       for (const [type, stats] of statsEntries) {
         delete extraRows[type];
+        let row = this._infoRows[type];
+        if (!row) {
+          const icon = getIconTemplate(_SYMBOL_CONTAINER_TYPE, type, false);
+          const newRow = document.importNode(this._rowTemplate.content, true);
+          newRow.querySelector('.icon-container')!.appendChild(icon);
+          newRow.querySelector('th')!.textContent = `.${type}`;
+
+          row = newRow.querySelector('tr')!;
+          this._infoRows[type] = row;
+        }
         const { color } = getIconStyle(type);
         const percentage = stats.size / totalSize;
-        this._updateBreakdownRow(this._infoRows[type], stats, percentage);
+        this._updateBreakdownRow(row, stats, percentage);
 
         const arcLength = Math.abs(percentage) * 2 * Math.PI;
         if (arcLength > 0) {
