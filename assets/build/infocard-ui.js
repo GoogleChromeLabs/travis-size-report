@@ -260,6 +260,9 @@ const displayInfocard = (() => {
             for (const row of Object.values(extraRows)) {
                 this._updateBreakdownRow(row, null, 0);
             }
+            if (containerNode.size === 0) {
+                this._ctx.clearRect(0, 0, this._ctx.canvas.width, this._ctx.canvas.height);
+            }
         }
     }
     const _containerInfo = new ContainerInfocard('infocard-container');

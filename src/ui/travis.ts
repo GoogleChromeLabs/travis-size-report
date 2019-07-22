@@ -83,9 +83,14 @@ function transformChanges(changes: BuildChanges): { meta: Meta; entries: Iterabl
 }
 
 export class TravisFetcher {
+  diffMode = true;
   repo?: string;
   branch = 'master';
   private findRenamed?: FindRenamed;
+
+  setDiffMode(diffMode: boolean) {
+    this.diffMode = diffMode;
+  }
 
   setRepo(repo: string | null) {
     this.repo = repo || 'GoogleChromeLabs/travis-size-report';

@@ -488,6 +488,7 @@ class TreeBuilder {
 function parseOptions(options: string) {
   const params = new URLSearchParams(options);
 
+  const diffMode = params.has('diff_mode');
   const repo = params.get('repo');
   const branch = params.get('branch');
   const findRenamed = params.get('find_renamed');
@@ -537,7 +538,7 @@ function parseOptions(options: string) {
     return filters.every(fn => fn(symbolNode));
   }
 
-  return { filterTest, repo, branch, findRenamed };
+  return { filterTest, diffMode, repo, branch, findRenamed };
 }
 
 let builder: TreeBuilder | null = null;
@@ -634,8 +635,9 @@ async function buildTree(filterTest: Filter, onProgress: (msg: TreeProgress) => 
 
 const actions = {
   load({ options }: { options: string }) {
-    const { filterTest, repo, branch, findRenamed } = parseOptions(options);
+    const { filterTest, diffMode, repo, branch, findRenamed } = parseOptions(options);
 
+    fetcher.setDiffMode(diffMode);
     fetcher.setRepo(repo);
     fetcher.setBranch(branch);
     fetcher.setFindRenamed(findRenamed);

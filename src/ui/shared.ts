@@ -114,10 +114,10 @@ const _KEYS = Object.freeze({
  * that one unit represents.
  */
 const _BYTE_UNITS = Object.freeze({
-  GiB: 1024 ** 3,
-  MiB: 1024 ** 2,
-  KiB: 1024 ** 1,
-  B: 1024 ** 0,
+  GiB: 1000 ** 3,
+  MiB: 1000 ** 2,
+  KiB: 1000 ** 1,
+  B: 1000 ** 0,
 });
 
 /**

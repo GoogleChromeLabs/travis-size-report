@@ -325,7 +325,7 @@ const newTreeElement = (() => {
     const container = data.type[0];
     const type = data.type.slice(1);
     const icon = getIconTemplate(container, type);
-    if (!isLeaf) {
+    if (!isLeaf && data.size !== 0) {
       const symbolStyle = getIconStyle(type)!;
       icon.setAttribute('fill', symbolStyle.color);
     }
@@ -426,7 +426,6 @@ const newTreeElement = (() => {
       link.click();
       link.tabIndex = 0;
     }
-    state.set('diff_mode', diffMode ? 'on' : null);
 
     // Double requestAnimationFrame ensures that the code inside executes in a
     // different frame than the above tree element creation.

@@ -244,7 +244,11 @@ function transformChanges(changes) {
 }
 class TravisFetcher {
     constructor() {
+        this.diffMode = true;
         this.branch = 'master';
+    }
+    setDiffMode(diffMode) {
+        this.diffMode = diffMode;
     }
     setRepo(repo) {
         this.repo = repo || 'GoogleChromeLabs/travis-size-report';
@@ -654,6 +658,7 @@ class TreeBuilder {
  */
 function parseOptions(options) {
     const params = new URLSearchParams(options);
+    const diffMode = params.has('diff_mode');
     const repo = params.get('repo');
     const branch = params.get('branch');
     const findRenamed = params.get('find_renamed');
@@ -700,7 +705,7 @@ function parseOptions(options) {
     function filterTest(symbolNode) {
         return filters.every(fn => fn(symbolNode));
     }
-    return { filterTest, repo, branch, findRenamed };
+    return { filterTest, diffMode, repo, branch, findRenamed };
 }
 let builder = null;
 const fetcher = new TravisFetcher();
@@ -791,7 +796,8 @@ async function buildTree(filterTest, onProgress) {
 }
 const actions = {
     load({ options }) {
-        const { filterTest, repo, branch, findRenamed } = parseOptions(options);
+        const { filterTest, diffMode, repo, branch, findRenamed } = parseOptions(options);
+        fetcher.setDiffMode(diffMode);
         fetcher.setRepo(repo);
         fetcher.setBranch(branch);
         fetcher.setFindRenamed(findRenamed);

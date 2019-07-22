@@ -318,7 +318,7 @@ function _makeSizeTextGetter() {
   function getSizeContents(node: TreeNode): GetSizeResult {
     let bytes: number;
     if (state.has('gzip')) {
-      bytes = node.size; // TODO: = node.gzipSize
+      bytes = node.gzipSize;
     } else {
       bytes = node.size;
     }
