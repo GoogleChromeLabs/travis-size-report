@@ -424,7 +424,6 @@ const newTreeElement = (() => {
         }
     }
     const _symbolTree = document.querySelector('#symboltree');
-    const _dataUrlInput = form.elements.namedItem('load_url');
     const _progress = new ProgressBar('#progress');
     /**
      * Displays the given data as a tree view

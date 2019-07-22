@@ -411,7 +411,6 @@ const newTreeElement = (() => {
   }
 
   const _symbolTree = document.querySelector<HTMLUListElement>('#symboltree')!;
-  const _dataUrlInput = form.elements.namedItem('load_url') as HTMLInputElement;
   const _progress = new ProgressBar('#progress');
 
   /**

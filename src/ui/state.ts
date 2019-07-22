@@ -296,7 +296,7 @@ function _makeIconTemplateGetter() {
 }
 
 function _makeSizeTextGetter() {
-  const _SIZE_CHANGE_CUTOFF = 50000;
+  const _SIZE_CHANGE_CUTOFF = 50;
 
   /**
    * Create the contents for the size element of a tree node.
