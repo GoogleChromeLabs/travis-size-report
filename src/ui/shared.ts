@@ -20,10 +20,14 @@ interface TreeNode {
   children: TreeNode[] | null;
   /** Parent tree node. null if this is a root node. */
   parent: TreeNode | null;
-  /** Full path to this node. */
+  /**
+   * Identifier path used to group symbols.
+   * If grouping by source path, path to the file with the symbol name as a suffix.
+   * If grouping by component, prefixed with components separated by > character.
+   */
   idPath: string;
   /** Path to the source containing this symbol. */
-  srcPath: string;
+  srcPath: string | undefined;
   /**
    * The name of the node is include in the idPath.
    * This index indicates where to start to slice the idPath to read the name.
@@ -36,7 +40,6 @@ interface TreeNode {
    * may have a second character to denote the most common child.
    */
   type: string;
-  numAliases: number;
   /**
    * Stats about this
    * node's descendants, organized by symbol type.
@@ -52,7 +55,7 @@ interface TreeNode {
 interface TreeNodeChildStats {
   /** Byte size */
   size: number;
-  /** Number of symbols */
+  /** Number of dex methods */
   count: number;
 }
 
@@ -92,14 +95,12 @@ type GetSize = (node: TreeNode, unit: string) => GetSizeResult;
  * _COMPACT_*_KEY variables in html_report.py.
  */
 const _KEYS = Object.freeze({
-  COMPONENT_INDEX: 'c' as const,
   SOURCE_PATH: 'p' as const,
   FILE_SYMBOLS: 's' as const,
   SIZE: 'b' as const,
   COUNT: 'u' as const,
   FLAGS: 'f' as const,
   SYMBOL_NAME: 'n' as const,
-  NUM_ALIASES: 'a' as const,
   TYPE: 't' as const,
 });
 

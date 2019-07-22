@@ -89,24 +89,15 @@ function _compareFunc(a: TreeNode, b: TreeNode) {
 function createNode(
   options: Pick<TreeNode, 'idPath' | 'type' | 'shortNameIndex'> & Partial<TreeNode>,
 ): TreeNode {
-  const {
-    idPath,
-    srcPath,
-    type,
-    shortNameIndex,
-    size = 0,
-    numAliases = 1,
-    childStats = {},
-  } = options;
+  const { idPath, srcPath, type, shortNameIndex, size = 0, childStats = {} } = options;
   return {
     children: [],
     parent: null,
     idPath,
-    srcPath: srcPath!,
+    srcPath,
     type,
     shortNameIndex,
     size,
-    numAliases,
     childStats,
   };
 }
@@ -394,7 +385,6 @@ class TreeBuilder {
       const size = symbol[_KEYS.SIZE];
       const type = symbol[_KEYS.TYPE];
       const count = (_KEYS.COUNT in symbol ? symbol[_KEYS.COUNT] : defaultCount) as number;
-      const numAliases = _KEYS.NUM_ALIASES in symbol ? symbol[_KEYS.NUM_ALIASES] : 1;
 
       const symbolNode = createNode({
         // Join file path to symbol name with a ":"
@@ -403,7 +393,6 @@ class TreeBuilder {
         shortNameIndex: idPath.length + 1,
         size,
         type,
-        numAliases,
         childStats: {
           [type]: {
             size,

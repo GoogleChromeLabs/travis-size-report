@@ -293,13 +293,15 @@ function _makeSizeTextGetter() {
    * size element body. Can be consumed by `_applySizeFunc()`
    */
   function getSizeContents(node: TreeNode): GetSizeResult {
-    const bytes = node.size;
+    let bytes: number;
+    if (state.has('gzip')) {
+      bytes = node.size; // TODO: = node.gzipSize
+    } else {
+      bytes = node.size;
+    }
 
     const bytesGrouped = bytes.toLocaleString(_LOCALE, { useGrouping: true });
     let description = `${bytesGrouped} bytes`;
-    if (node.numAliases > 1) {
-      description += ` for 1 of ${node.numAliases} aliases`;
-    }
 
     const unit = (state.get('byteunit') as keyof typeof _BYTE_UNITS) || 'KiB';
     const suffix = _BYTE_UNITS[unit];
