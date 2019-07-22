@@ -488,7 +488,9 @@ class TreeBuilder {
 function parseOptions(options: string) {
   const params = new URLSearchParams(options);
 
-  const url = params.get('load_url');
+  const repo = params.get('repo');
+  const branch = params.get('branch');
+  const findRenamed = params.get('find_renamed');
 
   let minSymbolSize = Number(params.get('min_size'));
   if (Number.isNaN(minSymbolSize)) {
@@ -497,12 +499,6 @@ function parseOptions(options: string) {
 
   const includeRegex = params.get('include');
   const excludeRegex = params.get('exclude');
-
-  let typeFilter: Set<string> = new Set(types(params.getAll(_TYPE_STATE_KEY)));
-  if (typeFilter.size === 0) {
-    typeFilter = new Set(_SYMBOL_TYPE_SET);
-    typeFilter.delete('b');
-  }
 
   /**
    * List of functions that
@@ -514,12 +510,6 @@ function parseOptions(options: string) {
   if (minSymbolSize > 0) {
     filters.push(s => Math.abs(s.size) >= minSymbolSize);
   }
-
-  /*
-  if (typeFilter.size < _SYMBOL_TYPE_SET.size) {
-    filters.push(s => typeFilter.has(s.type));
-  }
-  */
 
   // Search symbol names using regex
   if (includeRegex) {
@@ -547,11 +537,11 @@ function parseOptions(options: string) {
     return filters.every(fn => fn(symbolNode));
   }
 
-  return { filterTest, url };
+  return { filterTest, repo, branch, findRenamed };
 }
 
 let builder: TreeBuilder | null = null;
-const fetcher = new TravisFetcher('GoogleChromeLabs/travis-size-report');
+const fetcher = new TravisFetcher();
 
 /**
  * Assemble a tree when this worker receives a message.
@@ -643,18 +633,14 @@ async function buildTree(filterTest: Filter, onProgress: (msg: TreeProgress) => 
 }
 
 const actions = {
-  load({ input, options }: { input: string | null; options: string }) {
-    const { filterTest, url } = parseOptions(options);
-    if (input === 'from-url://') {
-      if (url) {
-        // Display the data from the `load_url` query parameter
-        console.info('Displaying data from', url);
-        fetcher.setInput(url);
-      }
-    } else if (input != null) {
-      console.info('Displaying uploaded data');
-      fetcher.setInput(input);
-    }
+  load({ options }: { options: string }) {
+    const { filterTest, repo, branch, findRenamed } = parseOptions(options);
+
+    fetcher.setRepo(repo);
+    fetcher.setBranch(branch);
+    fetcher.setFindRenamed(findRenamed);
+
+    console.log('Displaying data for', fetcher.repo, fetcher.branch);
 
     return buildTree(filterTest, progress => {
       // @ts-ignore

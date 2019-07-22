@@ -1,5 +1,6 @@
 import { BuildChanges, getBuildInfo, getChanges } from '../cli/compare-travis';
 import { FileEntry, Meta } from './tree-worker';
+import { FindRenamed, buildFindRenamedFunc } from '../cli/find-renamed';
 export { FileData } from '../cli/compare-travis';
 
 function basename(path: string) {
@@ -80,36 +81,25 @@ function transformChanges(changes: BuildChanges): { meta: Meta; entries: FileEnt
 }
 
 export class TravisFetcher {
-  private user?: string;
-  private repo?: string;
-  private branch = 'master';
+  repo?: string;
+  branch = 'master';
+  private findRenamed?: FindRenamed;
 
-  constructor(input: string) {
-    this.setInput(input);
+  setRepo(repo: string | null) {
+    this.repo = repo || 'GoogleChromeLabs/travis-size-report';
   }
 
-  setInput(input: string) {
-    const parts = input.split('/');
-    if (parts.length < 2) {
-      throw new TypeError(`Invalid input. Must be in format user/repo.`);
-    } else {
-      this.user = parts[0];
-      this.repo = parts[1];
-      if (parts.length >= 3) {
-        this.branch = parts.slice(2).join('/');
-      } else {
-        this.branch = 'master';
-      }
-    }
+  setBranch(branch: string | null) {
+    this.branch = branch || 'master';
+  }
+
+  setFindRenamed(pattern: string | null) {
+    this.findRenamed = pattern ? buildFindRenamedFunc(pattern) : undefined;
   }
 
   async *newlineDelimtedJsonStream() {
-    const [currentBuildInfo, previousBuildInfo] = await getBuildInfo(
-      this.user!,
-      this.repo!,
-      this.branch,
-      2,
-    );
+    const [user, repo] = this.repo!.split('/');
+    const [currentBuildInfo, previousBuildInfo] = await getBuildInfo(user, repo, this.branch, 2);
 
     if (!previousBuildInfo) {
       throw new Error(`Couldn't find previous build info`);
@@ -117,7 +107,7 @@ export class TravisFetcher {
       throw new Error(`Couldn't find current build info`);
     }
 
-    const buildChanges = await getChanges(previousBuildInfo, currentBuildInfo);
+    const buildChanges = await getChanges(previousBuildInfo, currentBuildInfo, this.findRenamed);
     const { meta, entries } = transformChanges(buildChanges);
 
     yield meta;

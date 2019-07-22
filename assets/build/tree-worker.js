@@ -95,6 +95,82 @@ async function getChanges(previousBuildInfo, buildInfo, findRenamed) {
     return { newItems, deletedItems, sameItems, changedItems };
 }
 
+const matchOperatorsRegex = /[|\\{}()[\]^$+*?.-]/g;
+
+var escapeStringRegexp = string => {
+	if (typeof string !== 'string') {
+		throw new TypeError('Expected a string');
+	}
+
+	return string.replace(matchOperatorsRegex, '\\$&');
+};
+
+const PLACEHOLDER_REGEX = /\\\[(\w+)\\\]/g;
+const REPLACEMENTS = {
+    extname: '(\\.\\w+)',
+    hash: '[a-f0-9]+',
+    name: '(.+)',
+};
+/**
+ * Name doesn't start with "./", "/", "../"
+ */
+function isPlainName(name) {
+    return !(name[0] === '/' ||
+        (name[1] === '.' && (name[2] === '/' || (name[2] === '.' && name[3] === '/'))));
+}
+function validateFindRenamedPattern(pattern) {
+    if (!isPlainName(pattern)) {
+        throw new TypeError(`Invalid output pattern "${pattern}, cannot be an absolute or relative path.`);
+    }
+    escapeStringRegexp(pattern).replace(PLACEHOLDER_REGEX, (_match, type) => {
+        const replacement = REPLACEMENTS[type];
+        if (replacement == undefined) {
+            throw new TypeError(`"${type}" is not a valid substitution name`);
+        }
+        return replacement;
+    });
+}
+/**
+ * Creates a findRenamed function based on the given `pattern`.
+ *
+ * Patterns support the following placeholders:
+ * - `[extname]`: The file extension of the asset including a leading dot, e.g. `.css`
+ * - `[hash]`: A hash based on the name and content of the asset.
+ * - `[name]`: The file name of the asset excluding any extension.
+ */
+function buildFindRenamedFunc(pattern) {
+    validateFindRenamedPattern(pattern);
+    // Keep track of which placeholder each regex group corresponds to.
+    let i = 1;
+    const groups = [];
+    // Create a regex to extract parts of the path.
+    const parts = escapeStringRegexp(pattern).replace(PLACEHOLDER_REGEX, (_match, type) => {
+        const replacement = REPLACEMENTS[type];
+        if (replacement == undefined) {
+            throw new TypeError(`"${type}" is not a valid substitution name`);
+        }
+        groups[i] = type;
+        i++;
+        return replacement;
+    });
+    const partsRe = new RegExp(`^${parts}$`);
+    return function generatedFindRenamed(path, newPaths) {
+        const oldParts = partsRe.exec(path);
+        if (!oldParts)
+            return undefined;
+        return newPaths.find(newPath => {
+            const newParts = partsRe.exec(newPath);
+            if (!newParts || newParts.length !== oldParts.length)
+                return false;
+            for (let i = 1; i < oldParts.length; i++) {
+                if (oldParts[i] !== newParts[i] && groups[i] !== 'hash')
+                    return false;
+            }
+            return true;
+        });
+    };
+}
+
 function basename(path) {
     return path.substring(path.lastIndexOf('/') + 1);
 }
@@ -167,35 +243,28 @@ function transformChanges(changes) {
     return { meta, entries };
 }
 class TravisFetcher {
-    constructor(input) {
+    constructor() {
         this.branch = 'master';
-        this.setInput(input);
     }
-    setInput(input) {
-        const parts = input.split('/');
-        if (parts.length < 2) {
-            throw new TypeError(`Invalid input. Must be in format user/repo.`);
-        }
-        else {
-            this.user = parts[0];
-            this.repo = parts[1];
-            if (parts.length >= 3) {
-                this.branch = parts.slice(2).join('/');
-            }
-            else {
-                this.branch = 'master';
-            }
-        }
+    setRepo(repo) {
+        this.repo = repo || 'GoogleChromeLabs/travis-size-report';
+    }
+    setBranch(branch) {
+        this.branch = branch || 'master';
+    }
+    setFindRenamed(pattern) {
+        this.findRenamed = pattern ? buildFindRenamedFunc(pattern) : undefined;
     }
     async *newlineDelimtedJsonStream() {
-        const [currentBuildInfo, previousBuildInfo] = await getBuildInfo(this.user, this.repo, this.branch, 2);
+        const [user, repo] = this.repo.split('/');
+        const [currentBuildInfo, previousBuildInfo] = await getBuildInfo(user, repo, this.branch, 2);
         if (!previousBuildInfo) {
             throw new Error(`Couldn't find previous build info`);
         }
         else if (!currentBuildInfo) {
             throw new Error(`Couldn't find current build info`);
         }
-        const buildChanges = await getChanges(previousBuildInfo, currentBuildInfo);
+        const buildChanges = await getChanges(previousBuildInfo, currentBuildInfo, this.findRenamed);
         const { meta, entries } = transformChanges(buildChanges);
         yield meta;
         yield* entries;
@@ -585,18 +654,15 @@ class TreeBuilder {
  */
 function parseOptions(options) {
     const params = new URLSearchParams(options);
-    const url = params.get('load_url');
+    const repo = params.get('repo');
+    const branch = params.get('branch');
+    const findRenamed = params.get('find_renamed');
     let minSymbolSize = Number(params.get('min_size'));
     if (Number.isNaN(minSymbolSize)) {
         minSymbolSize = 0;
     }
     const includeRegex = params.get('include');
     const excludeRegex = params.get('exclude');
-    let typeFilter = new Set(types(params.getAll(_TYPE_STATE_KEY)));
-    if (typeFilter.size === 0) {
-        typeFilter = new Set(_SYMBOL_TYPE_SET);
-        typeFilter.delete('b');
-    }
     /**
      * List of functions that
      * check each symbol. If any returns false, the symbol will not be used.
@@ -606,11 +672,6 @@ function parseOptions(options) {
     if (minSymbolSize > 0) {
         filters.push(s => Math.abs(s.size) >= minSymbolSize);
     }
-    /*
-    if (typeFilter.size < _SYMBOL_TYPE_SET.size) {
-      filters.push(s => typeFilter.has(s.type));
-    }
-    */
     // Search symbol names using regex
     if (includeRegex) {
         try {
@@ -639,10 +700,10 @@ function parseOptions(options) {
     function filterTest(symbolNode) {
         return filters.every(fn => fn(symbolNode));
     }
-    return { filterTest, url };
+    return { filterTest, repo, branch, findRenamed };
 }
 let builder = null;
-const fetcher = new TravisFetcher('GoogleChromeLabs/travis-size-report');
+const fetcher = new TravisFetcher();
 /**
  * Assemble a tree when this worker receives a message.
  * @param {(symbolNode: TreeNode) => boolean} filterTest Filter function that
@@ -729,19 +790,12 @@ async function buildTree(filterTest, onProgress) {
     }
 }
 const actions = {
-    load({ input, options }) {
-        const { filterTest, url } = parseOptions(options);
-        if (input === 'from-url://') {
-            if (url) {
-                // Display the data from the `load_url` query parameter
-                console.info('Displaying data from', url);
-                fetcher.setInput(url);
-            }
-        }
-        else if (input != null) {
-            console.info('Displaying uploaded data');
-            fetcher.setInput(input);
-        }
+    load({ options }) {
+        const { filterTest, repo, branch, findRenamed } = parseOptions(options);
+        fetcher.setRepo(repo);
+        fetcher.setBranch(branch);
+        fetcher.setFindRenamed(findRenamed);
+        console.log('Displaying data for', fetcher.repo, fetcher.branch);
         return buildTree(filterTest, progress => {
             // @ts-ignore
             self.postMessage(progress);

@@ -3,6 +3,7 @@ export declare type FindRenamed = (
 filePath: string, 
 /** Paths of files that are new in the latest build */
 newFiles: string[]) => string | undefined | PromiseLike<string | undefined>;
+export declare function validateFindRenamedPattern(pattern: string): void;
 /**
  * Creates a findRenamed function based on the given `pattern`.
  *

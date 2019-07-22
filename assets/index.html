@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
   <!--
- Copyright 2018 The Chromium Authors. All rights reserved.
- Use of this source code is governed by a BSD-style license that can be
- found in the LICENSE file.
--->
+    Copyright 2018 The Chromium Authors. All rights reserved.
+    Use of this source code is governed by a BSD-style license that can be
+    found in the LICENSE file.
+  -->
 
   <head>
     <title>Travis Size Report</title>
@@ -104,6 +104,52 @@
       <input type="hidden" name="load_url" data-dynamic />
 
       <fieldset>
+        <legend class="subhead">Configuration</legend>
+        <div class="input-wrapper">
+          <input
+            class="input-validate"
+            type="text"
+            id="repo"
+            name="repo"
+            placeholder="GoogleChromeLabs/travis-size-report"
+            aria-describedby="repo-error"
+          />
+          <label class="input-label" for="repo">
+            Repository
+          </label>
+          <p class="input-error" id="repo-error"></p>
+        </div>
+        <div class="input-wrapper">
+          <input
+            class="input-validate"
+            type="text"
+            id="branch"
+            name="exclude"
+            placeholder="master"
+            aria-describedby="branch-error"
+          />
+          <label class="input-label" for="branch">
+            Branch
+          </label>
+          <p class="input-error" id="branch-error"></p>
+        </div>
+        <div class="input-wrapper">
+          <input
+            class="input-validate"
+            type="text"
+            id="findrenamed"
+            name="find_renamed"
+            placeholder="[name]-[hash][extname]"
+            aria-describedby="findrenamed-error"
+          />
+          <label class="input-label" for="findrenamed">
+            Find renamed files pattern
+          </label>
+          <p class="input-error" id="findrenamed-error"></p>
+        </div>
+      </fieldset>
+
+      <fieldset>
         <legend class="subhead">Size options</legend>
         <div class="checkbox-wrapper">
           <input type="checkbox" id="gzip" name="gzip" value="on" />
@@ -111,8 +157,8 @@
         </div>
         <p class="select-wrapper">
           <select id="byteunit" class="sel-big" name="byteunit" data-dynamic>
-            <option value="B">B - bytes</option>
-            <option value="KiB" selected>KiB - kibibytes</option>
+            <option value="B" selected>B - bytes</option>
+            <option value="KiB">KiB - kibibytes</option>
             <option value="MiB">MiB - mebibytes</option>
             <option value="GiB">GiB - gibibytes</option>
           </select>
@@ -130,7 +176,7 @@
         <legend class="subhead">Search by regex</legend>
         <div class="input-wrapper">
           <input
-            class="input-regex"
+            class="input-regex input-validate"
             type="text"
             id="includeregex"
             name="include"
@@ -144,7 +190,7 @@
         </div>
         <div class="input-wrapper">
           <input
-            class="input-regex"
+            class="input-regex input-validate"
             type="text"
             id="excluderegex"
             name="exclude"
@@ -156,72 +202,6 @@
           </label>
           <p class="input-error" id="exclude-error"></p>
         </div>
-      </fieldset>
-
-      <fieldset id="types-filter">
-        <legend class="subhead">Symbol types to show</legend>
-        <div class="checkbox-wrapper">
-          <input type="checkbox" id="filtertext" name="type" value="t" checked />
-          <label class="checkbox-label" for="filtertext">
-            Native code: .text
-          </label>
-        </div>
-        <div class="checkbox-wrapper">
-          <input type="checkbox" id="filterdata" name="type" value="d" checked />
-          <label class="checkbox-label" for="filterdata">
-            Native code: .data
-          </label>
-        </div>
-        <div class="checkbox-wrapper">
-          <input type="checkbox" id="filterrodata" name="type" value="r" checked />
-          <label class="checkbox-label" for="filterrodata">
-            Native code: .rodata
-          </label>
-        </div>
-        <div class="checkbox-wrapper">
-          <input type="checkbox" id="filterrelro" name="type" value="R" checked />
-          <label class="checkbox-label" for="filterrelro">
-            Native code: .data.rel.ro
-          </label>
-        </div>
-        <div class="checkbox-wrapper">
-          <input type="checkbox" id="filterdex" name="type" value="m" checked />
-          <label class="checkbox-label" for="filterdex">
-            Dex: Methods
-          </label>
-        </div>
-        <div class="checkbox-wrapper">
-          <input type="checkbox" id="filterdexnon" name="type" value="x" checked />
-          <label class="checkbox-label" for="filterdexnon">
-            Dex: Other
-          </label>
-        </div>
-        <div class="checkbox-wrapper">
-          <input type="checkbox" id="filterpak" name="type" value="p" checked />
-          <label class="checkbox-label" for="filterpak">
-            Pak: Translations
-          </label>
-        </div>
-        <div class="checkbox-wrapper">
-          <input type="checkbox" id="filterpaknon" name="type" value="P" checked />
-          <label class="checkbox-label" for="filterpaknon">
-            Pak: Non-translations
-          </label>
-        </div>
-        <div class="checkbox-wrapper">
-          <input type="checkbox" id="filterother" name="type" value="o" checked />
-          <label class="checkbox-label" for="filterother">
-            Assets &amp; Miscellaneous Entries
-          </label>
-        </div>
-        <div class="checkbox-wrapper">
-          <input type="checkbox" id="filterbss" name="type" value="b" />
-          <label class="checkbox-label" for="filterbss">
-            Native Code: .bss
-          </label>
-        </div>
-        <button type="button" class="text-button" id="type-all">Select all</button>
-        <button type="button" class="text-button" id="type-none">Select none</button>
       </fieldset>
     </form>
     <div class="symbols">

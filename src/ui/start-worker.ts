@@ -72,9 +72,8 @@ class TreeWorker {
    * Use `onProgress` before calling `loadTree`.
    * @param {string} input
    */
-  loadTree(input: string | null = null): Promise<TreeProgress> {
+  loadTree(): Promise<TreeProgress> {
     return this._waitForResponse('load', {
-      input,
       options: location.search.slice(1),
     }) as Promise<TreeProgress>;
   }
@@ -83,4 +82,4 @@ class TreeWorker {
 export const worker = new TreeWorker(_innerWorker);
 // Kick off the worker ASAP so it can start parsing data faster.
 // Subsequent calls will just use a worker locally.
-export const treeReady = worker.loadTree('from-url://');
+export const treeReady = worker.loadTree();

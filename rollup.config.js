@@ -1,4 +1,5 @@
 import resolve from 'rollup-plugin-node-resolve';
+import commonjs from 'rollup-plugin-commonjs';
 import typescript from 'rollup-plugin-typescript2';
 
 const { dependencies } = require('./package.json');
@@ -49,7 +50,7 @@ const uiConfig = {
     sourcemap: true,
   },
   external: ['node-fetch', 'url'],
-  plugins: [typescript(uiTypeScriptPluginOptions), resolve()],
+  plugins: [typescript(uiTypeScriptPluginOptions), resolve(), commonjs()],
 };
 
 /** @type {import('rollup').RollupOptions} */
@@ -61,7 +62,7 @@ const uiWorkerConfig = {
     sourcemap: true,
   },
   external: ['node-fetch', 'url'],
-  plugins: [typescript(uiTypeScriptPluginOptions), resolve()],
+  plugins: [typescript(uiTypeScriptPluginOptions), resolve(), commonjs()],
 };
 
 export default [nodeConfig, sharedUiScriptConfig, uiConfig, uiWorkerConfig];

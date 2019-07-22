@@ -47,8 +47,6 @@ const _OTHER_SYMBOL_TYPE = 'o';
 const _SYMBOL_TYPE_SET = new Set('bdrtRxmopP');
 /** Name used by a directory created to hold symbols with no name. */
 const _NO_NAME = '(No path)';
-/** Key where type is stored in the query string state. */
-const _TYPE_STATE_KEY = 'type';
 const _LOCALE = (navigator.languages || navigator.language);
 /**
  * Returns shortName for a tree node.
@@ -97,7 +95,6 @@ Object.assign(self, {
     _OTHER_SYMBOL_TYPE,
     _SYMBOL_TYPE_SET,
     _NO_NAME,
-    _TYPE_STATE_KEY,
     _LOCALE,
     shortName,
     types,

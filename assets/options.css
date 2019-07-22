@@ -222,16 +222,16 @@ select.sel-big:focus + .select-label::after {
   color: #d93025;
   font-size: 12px;
 }
-.input-regex:invalid,
-.input-regex[aria-invalid='true'] {
+.input-validate:invalid,
+.input-validate[aria-invalid='true'] {
   caret-color: #d93025;
 }
-.input-regex:invalid + .input-label,
-.input-regex[aria-invalid='true'] + .input-label {
+.input-validate:invalid + .input-label,
+.input-validate[aria-invalid='true'] + .input-label {
   color: #d93025;
 }
-.input-regex:invalid ~ .input-error,
-.input-regex[aria-invalid='true'] ~ .input-error {
+.input-validate:invalid ~ .input-error,
+.input-validate[aria-invalid='true'] ~ .input-error {
   opacity: 1;
 }
 

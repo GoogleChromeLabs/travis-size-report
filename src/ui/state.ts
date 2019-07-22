@@ -1,3 +1,5 @@
+import { validateFindRenamedPattern } from '../cli/find-renamed';
+
 // Copyright 2018 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -52,11 +54,6 @@ function _initState() {
    * input names.
    */
   let _filterParams = new URLSearchParams(location.search.slice(1));
-  const typeList = _filterParams.getAll(_TYPE_STATE_KEY);
-  _filterParams.delete(_TYPE_STATE_KEY);
-  for (const type of types(typeList)) {
-    _filterParams.append(_TYPE_STATE_KEY, type);
-  }
 
   const state = Object.freeze({
     /**
@@ -80,8 +77,6 @@ function _initState() {
      */
     toString() {
       const copy = new URLSearchParams(_filterParams);
-      const types = [...new Set(copy.getAll(_TYPE_STATE_KEY))];
-      if (types.length > 0) copy.set(_TYPE_STATE_KEY, types.join(''));
 
       const queryString = copy.toString();
       return queryString.length > 0 ? `?${queryString}` : '';
@@ -161,12 +156,9 @@ function _initState() {
 function _startListeners() {
   const _SHOW_OPTIONS_STORAGE_KEY = 'show-options';
 
-  const typesFilterContainer = document.querySelector<HTMLFieldSetElement>('#types-filter')!;
-  const byteunit = form.elements.namedItem('byteunit') as HTMLFieldSetElement;
-  const typeCheckboxes = (form.elements.namedItem(_TYPE_STATE_KEY) as unknown) as HTMLCollectionOf<
-    HTMLInputElement
-  >;
-  const sizeHeader = document.querySelector<HTMLSpanElement>('#size-header')!;
+  const repo = document.querySelector<HTMLInputElement>('#repo')!;
+  const branch = document.querySelector<HTMLInputElement>('#branch')!;
+  const findrenamed = document.querySelector<HTMLInputElement>('#findrenamed')!;
 
   /**
    * The settings dialog on the side can be toggled on and off by elements with
@@ -185,38 +177,60 @@ function _startListeners() {
   }
 
   /**
-   * Display error text on blur for regex inputs, if the input is invalid.
+   * Display error text on blur for inputs, if the input is invalid.
    * @param {Event} event
    */
-  function checkForRegExError(event: Event) {
-    const input = event.currentTarget as HTMLInputElement;
-    const errorBox = document.getElementById(input.getAttribute('aria-describedby')!)!;
-    try {
-      new RegExp(input.value);
-      errorBox.textContent = '';
-      input.setAttribute('aria-invalid', 'false');
-    } catch (err) {
-      errorBox.textContent = err.message;
-      input.setAttribute('aria-invalid', 'true');
-    }
+  function validateWith(validator: (value: string) => string | null) {
+    return (event: Event) => {
+      const input = event.currentTarget as HTMLInputElement;
+      const errorBox = document.getElementById(input.getAttribute('aria-describedby')!)!;
+      const err = validator(input.value);
+      if (err) {
+        errorBox.textContent = err;
+        input.setAttribute('aria-invalid', 'true');
+      } else {
+        errorBox.textContent = '';
+        input.setAttribute('aria-invalid', 'false');
+      }
+    };
   }
+
+  const checkForRegExError = validateWith(value => {
+    try {
+      new RegExp(value);
+      return null;
+    } catch (err) {
+      return err.message;
+    }
+  });
   for (const input of document.getElementsByClassName('input-regex')) {
     input.addEventListener('blur', checkForRegExError);
     input.dispatchEvent(new Event('blur'));
   }
 
-  document.getElementById('type-all')!.addEventListener('click', () => {
-    for (const checkbox of typeCheckboxes) {
-      checkbox.checked = true;
-    }
-    form.dispatchEvent(new Event('change'));
-  });
-  document.getElementById('type-none')!.addEventListener('click', () => {
-    for (const checkbox of typeCheckboxes) {
-      checkbox.checked = false;
-    }
-    form.dispatchEvent(new Event('change'));
-  });
+  repo.addEventListener(
+    'blur',
+    validateWith(value => {
+      if (!value || value.includes('/')) {
+        return null;
+      } else {
+        return `${value} does not contain '/' separator`;
+      }
+    }),
+  );
+  repo.dispatchEvent(new Event('blur'));
+
+  findrenamed.addEventListener(
+    'blur',
+    validateWith(value => {
+      try {
+        if (value) validateFindRenamedPattern(value);
+        return null;
+      } catch (err) {
+        return err.message;
+      }
+    }),
+  );
 }
 
 function _makeIconTemplateGetter() {
@@ -307,7 +321,7 @@ function _makeSizeTextGetter() {
     const bytesGrouped = bytes.toLocaleString(_LOCALE, { useGrouping: true });
     let description = `${bytesGrouped} bytes`;
 
-    const unit = (state.get('byteunit') as keyof typeof _BYTE_UNITS) || 'KiB';
+    const unit = (state.get('byteunit') as keyof typeof _BYTE_UNITS) || 'B';
     const suffix = _BYTE_UNITS[unit];
     // Format |bytes| as a number with 2 digits after the decimal point
     const text = (bytes / suffix).toLocaleString(_LOCALE, {

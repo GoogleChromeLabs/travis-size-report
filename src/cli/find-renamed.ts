@@ -25,6 +25,22 @@ function isPlainName(name: string) {
   );
 }
 
+export function validateFindRenamedPattern(pattern: string) {
+  if (!isPlainName(pattern)) {
+    throw new TypeError(
+      `Invalid output pattern "${pattern}, cannot be an absolute or relative path.`,
+    );
+  }
+
+  escapeRE(pattern).replace(PLACEHOLDER_REGEX, (_match, type) => {
+    const replacement = REPLACEMENTS[type as Placeholder];
+    if (replacement == undefined) {
+      throw new TypeError(`"${type}" is not a valid substitution name`);
+    }
+    return replacement;
+  });
+}
+
 /**
  * Creates a findRenamed function based on the given `pattern`.
  *
@@ -34,11 +50,7 @@ function isPlainName(name: string) {
  * - `[name]`: The file name of the asset excluding any extension.
  */
 export function buildFindRenamedFunc(pattern: string): FindRenamed {
-  if (!isPlainName(pattern)) {
-    throw new TypeError(
-      `Invalid output pattern "${pattern}, cannot be an absolute or relative path.`,
-    );
-  }
+  validateFindRenamedPattern(pattern);
 
   // Keep track of which placeholder each regex group corresponds to.
   let i = 1;

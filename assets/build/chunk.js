@@ -1,3 +1,39 @@
+const matchOperatorsRegex = /[|\\{}()[\]^$+*?.-]/g;
+
+var escapeStringRegexp = string => {
+	if (typeof string !== 'string') {
+		throw new TypeError('Expected a string');
+	}
+
+	return string.replace(matchOperatorsRegex, '\\$&');
+};
+
+const PLACEHOLDER_REGEX = /\\\[(\w+)\\\]/g;
+const REPLACEMENTS = {
+    extname: '(\\.\\w+)',
+    hash: '[a-f0-9]+',
+    name: '(.+)',
+};
+/**
+ * Name doesn't start with "./", "/", "../"
+ */
+function isPlainName(name) {
+    return !(name[0] === '/' ||
+        (name[1] === '.' && (name[2] === '/' || (name[2] === '.' && name[3] === '/'))));
+}
+function validateFindRenamedPattern(pattern) {
+    if (!isPlainName(pattern)) {
+        throw new TypeError(`Invalid output pattern "${pattern}, cannot be an absolute or relative path.`);
+    }
+    escapeStringRegexp(pattern).replace(PLACEHOLDER_REGEX, (_match, type) => {
+        const replacement = REPLACEMENTS[type];
+        if (replacement == undefined) {
+            throw new TypeError(`"${type}" is not a valid substitution name`);
+        }
+        return replacement;
+    });
+}
+
 // Copyright 2018 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -51,11 +87,6 @@ function _initState() {
      * input names.
      */
     let _filterParams = new URLSearchParams(location.search.slice(1));
-    const typeList = _filterParams.getAll(_TYPE_STATE_KEY);
-    _filterParams.delete(_TYPE_STATE_KEY);
-    for (const type of types(typeList)) {
-        _filterParams.append(_TYPE_STATE_KEY, type);
-    }
     const state = Object.freeze({
         /**
          * Returns a string from the current query string state.
@@ -78,9 +109,6 @@ function _initState() {
          */
         toString() {
             const copy = new URLSearchParams(_filterParams);
-            const types = [...new Set(copy.getAll(_TYPE_STATE_KEY))];
-            if (types.length > 0)
-                copy.set(_TYPE_STATE_KEY, types.join(''));
             const queryString = copy.toString();
             return queryString.length > 0 ? `?${queryString}` : '';
         },
@@ -151,10 +179,9 @@ function _initState() {
 }
 function _startListeners() {
     const _SHOW_OPTIONS_STORAGE_KEY = 'show-options';
-    const typesFilterContainer = document.querySelector('#types-filter');
-    const byteunit = form.elements.namedItem('byteunit');
-    const typeCheckboxes = form.elements.namedItem(_TYPE_STATE_KEY);
-    const sizeHeader = document.querySelector('#size-header');
+    const repo = document.querySelector('#repo');
+    const branch = document.querySelector('#branch');
+    const findrenamed = document.querySelector('#findrenamed');
     /**
      * The settings dialog on the side can be toggled on and off by elements with
      * a 'toggle-options' class.
@@ -171,38 +198,56 @@ function _startListeners() {
         document.body.classList.add('show-options');
     }
     /**
-     * Display error text on blur for regex inputs, if the input is invalid.
+     * Display error text on blur for inputs, if the input is invalid.
      * @param {Event} event
      */
-    function checkForRegExError(event) {
-        const input = event.currentTarget;
-        const errorBox = document.getElementById(input.getAttribute('aria-describedby'));
+    function validateWith(validator) {
+        return (event) => {
+            const input = event.currentTarget;
+            const errorBox = document.getElementById(input.getAttribute('aria-describedby'));
+            const err = validator(input.value);
+            if (err) {
+                errorBox.textContent = err;
+                input.setAttribute('aria-invalid', 'true');
+            }
+            else {
+                errorBox.textContent = '';
+                input.setAttribute('aria-invalid', 'false');
+            }
+        };
+    }
+    const checkForRegExError = validateWith(value => {
         try {
-            new RegExp(input.value);
-            errorBox.textContent = '';
-            input.setAttribute('aria-invalid', 'false');
+            new RegExp(value);
+            return null;
         }
         catch (err) {
-            errorBox.textContent = err.message;
-            input.setAttribute('aria-invalid', 'true');
+            return err.message;
         }
-    }
+    });
     for (const input of document.getElementsByClassName('input-regex')) {
         input.addEventListener('blur', checkForRegExError);
         input.dispatchEvent(new Event('blur'));
     }
-    document.getElementById('type-all').addEventListener('click', () => {
-        for (const checkbox of typeCheckboxes) {
-            checkbox.checked = true;
+    repo.addEventListener('blur', validateWith(value => {
+        if (!value || value.includes('/')) {
+            return null;
         }
-        form.dispatchEvent(new Event('change'));
-    });
-    document.getElementById('type-none').addEventListener('click', () => {
-        for (const checkbox of typeCheckboxes) {
-            checkbox.checked = false;
+        else {
+            return `${value} does not contain '/' separator`;
         }
-        form.dispatchEvent(new Event('change'));
-    });
+    }));
+    repo.dispatchEvent(new Event('blur'));
+    findrenamed.addEventListener('blur', validateWith(value => {
+        try {
+            if (value)
+                validateFindRenamedPattern(value);
+            return null;
+        }
+        catch (err) {
+            return err.message;
+        }
+    }));
 }
 function _makeIconTemplateGetter() {
     const _icons = document.getElementById('icons');
@@ -283,7 +328,7 @@ function _makeSizeTextGetter() {
         }
         const bytesGrouped = bytes.toLocaleString(_LOCALE, { useGrouping: true });
         let description = `${bytesGrouped} bytes`;
-        const unit = state.get('byteunit') || 'KiB';
+        const unit = state.get('byteunit') || 'B';
         const suffix = _BYTE_UNITS[unit];
         // Format |bytes| as a number with 2 digits after the decimal point
         const text = (bytes / suffix).toLocaleString(_LOCALE, {
