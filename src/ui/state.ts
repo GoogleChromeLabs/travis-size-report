@@ -244,17 +244,22 @@ function _makeIconTemplateGetter() {
     J: _icons.querySelector<SVGSVGElement>('.javaclassicon')!,
     F: _icons.querySelector<SVGSVGElement>('.fileicon')!,
     b: _icons.querySelector<SVGSVGElement>('.bssicon')!,
-    d: _icons.querySelector<SVGSVGElement>('.dataicon')!,
-    r: _icons.querySelector<SVGSVGElement>('.readonlyicon')!,
-    t: _icons.querySelector<SVGSVGElement>('.codeicon')!,
-    R: _icons.querySelector<SVGSVGElement>('.relroicon')!,
+    html: _icons.querySelector<SVGSVGElement>('.htmlicon')!,
+    ts: _icons.querySelector<SVGSVGElement>('.tsicon')!,
+    js: _icons.querySelector<SVGSVGElement>('.codeicon')!,
+    map: _icons.querySelector<SVGSVGElement>('.mapicon')!,
     '*': _icons.querySelector<SVGSVGElement>('.generatedicon')!,
     x: _icons.querySelector<SVGSVGElement>('.dexicon')!,
     m: _icons.querySelector<SVGSVGElement>('.dexmethodicon')!,
-    p: _icons.querySelector<SVGSVGElement>('.localpakicon')!,
-    P: _icons.querySelector<SVGSVGElement>('.nonlocalpakicon')!,
+    gz: _icons.querySelector<SVGSVGElement>('.gzipicon')!,
+    png: _icons.querySelector<SVGSVGElement>('.pngicon')!,
     o: _icons.querySelector<SVGSVGElement>('.othericon')!, // used as default icon
   };
+  symbolIcons.jpg = symbolIcons.png;
+  symbolIcons.jpeg = symbolIcons.png;
+  symbolIcons.webp = symbolIcons.png;
+  symbolIcons.gif = symbolIcons.png;
+  symbolIcons.svg = symbolIcons.png;
 
   const iconInfoCache = new Map<string, { color: string; description: string }>();
 

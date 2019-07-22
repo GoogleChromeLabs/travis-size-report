@@ -259,17 +259,22 @@ function _makeIconTemplateGetter() {
         J: _icons.querySelector('.javaclassicon'),
         F: _icons.querySelector('.fileicon'),
         b: _icons.querySelector('.bssicon'),
-        d: _icons.querySelector('.dataicon'),
-        r: _icons.querySelector('.readonlyicon'),
-        t: _icons.querySelector('.codeicon'),
-        R: _icons.querySelector('.relroicon'),
+        html: _icons.querySelector('.htmlicon'),
+        ts: _icons.querySelector('.tsicon'),
+        js: _icons.querySelector('.codeicon'),
+        map: _icons.querySelector('.mapicon'),
         '*': _icons.querySelector('.generatedicon'),
         x: _icons.querySelector('.dexicon'),
         m: _icons.querySelector('.dexmethodicon'),
-        p: _icons.querySelector('.localpakicon'),
-        P: _icons.querySelector('.nonlocalpakicon'),
+        gz: _icons.querySelector('.gzipicon'),
+        png: _icons.querySelector('.pngicon'),
         o: _icons.querySelector('.othericon'),
     };
+    symbolIcons.jpg = symbolIcons.png;
+    symbolIcons.jpeg = symbolIcons.png;
+    symbolIcons.webp = symbolIcons.png;
+    symbolIcons.gif = symbolIcons.png;
+    symbolIcons.svg = symbolIcons.png;
     const iconInfoCache = new Map();
     /**
      * Returns the SVG icon template element corresponding to the given type.
