@@ -6,14 +6,13 @@
  * _COMPACT_*_KEY variables in html_report.py.
  */
 const _KEYS = Object.freeze({
-    COMPONENT_INDEX: 'c',
     SOURCE_PATH: 'p',
     FILE_SYMBOLS: 's',
     SIZE: 'b',
+    GZIP_SIZE: 'g',
     COUNT: 'u',
     FLAGS: 'f',
     SYMBOL_NAME: 'n',
-    NUM_ALIASES: 'a',
     TYPE: 't',
 });
 /**

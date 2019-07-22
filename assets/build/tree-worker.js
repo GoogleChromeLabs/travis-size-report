@@ -112,13 +112,8 @@ function transformChanges(changes) {
                 {
                     n: basename(data.path),
                     b: data.size,
+                    g: data.gzipSize,
                     t: _CODE_SYMBOL_TYPE,
-                    u: 1,
-                },
-                {
-                    n: basename(data.path) + '.gz',
-                    b: data.gzipSize,
-                    t: _OTHER_SYMBOL_TYPE,
                     u: 1,
                 },
             ],
@@ -131,13 +126,8 @@ function transformChanges(changes) {
                 {
                     n: basename(data.path),
                     b: -data.size,
+                    g: -data.gzipSize,
                     t: _CODE_SYMBOL_TYPE,
-                    u: -1,
-                },
-                {
-                    n: basename(data.path) + '.gz',
-                    b: -data.gzipSize,
-                    t: _OTHER_SYMBOL_TYPE,
                     u: -1,
                 },
             ],
@@ -150,13 +140,8 @@ function transformChanges(changes) {
                 {
                     n: basename(data.path),
                     b: 0,
+                    g: 0,
                     t: _CODE_SYMBOL_TYPE,
-                    u: 1,
-                },
-                {
-                    n: basename(data.path) + '.gz',
-                    b: 0,
-                    t: _OTHER_SYMBOL_TYPE,
                     u: 1,
                 },
             ],
@@ -169,13 +154,8 @@ function transformChanges(changes) {
                 {
                     n: basename(newData.path),
                     b: newData.size - oldData.size,
+                    g: newData.gzipSize - oldData.gzipSize,
                     t: _CODE_SYMBOL_TYPE,
-                    u: 1,
-                },
-                {
-                    n: basename(newData.path) + '.gz',
-                    b: newData.gzipSize - oldData.gzipSize,
-                    t: _OTHER_SYMBOL_TYPE,
                     u: 1,
                 },
             ],
@@ -246,16 +226,16 @@ function _compareFunc(a, b) {
  * omitted, a default will be used instead.
  */
 function createNode(options) {
-    const { idPath, srcPath, type, shortNameIndex, size = 0, numAliases = 1, childStats = {}, } = options;
+    const { idPath, srcPath, type, shortNameIndex, size = 0, gzipSize = 0, childStats = {}, } = options;
     return {
         children: [],
         parent: null,
         idPath,
-        srcPath: srcPath,
+        srcPath,
         type,
         shortNameIndex,
         size,
-        numAliases,
+        gzipSize,
         childStats,
     };
 }
@@ -318,10 +298,11 @@ class TreeBuilder {
             for (const [type, stat] of additionalStats) {
                 let parentStat = parent.childStats[type];
                 if (parentStat == null) {
-                    parentStat = { size: 0, count: 0 };
+                    parentStat = { size: 0, gzipSize: 0, count: 0 };
                     parent.childStats[type] = parentStat;
                 }
                 parentStat.size += stat.size;
+                parentStat.gzipSize += stat.gzipSize;
                 parentStat.count += stat.count;
                 const absSize = Math.abs(parentStat.size);
                 if (absSize > lastBiggestSize) {
@@ -502,9 +483,9 @@ class TreeBuilder {
         // build child nodes for this file's symbols and attach to self
         for (const symbol of fileEntry[_KEYS.FILE_SYMBOLS]) {
             const size = symbol[_KEYS.SIZE];
-            const type = symbol[_KEYS.TYPE];
+            const gzipSize = symbol[_KEYS.GZIP_SIZE];
             const count = (_KEYS.COUNT in symbol ? symbol[_KEYS.COUNT] : defaultCount);
-            const numAliases = _KEYS.NUM_ALIASES in symbol ? symbol[_KEYS.NUM_ALIASES] : 1;
+            const type = symbol[_KEYS.TYPE];
             const symbolNode = createNode({
                 // Join file path to symbol name with a ":"
                 idPath: `${idPath}:${symbol[_KEYS.SYMBOL_NAME]}`,
@@ -512,10 +493,10 @@ class TreeBuilder {
                 shortNameIndex: idPath.length + 1,
                 size,
                 type,
-                numAliases,
                 childStats: {
                     [type]: {
                         size,
+                        gzipSize,
                         count,
                     },
                 },
@@ -708,7 +689,7 @@ async function buildTree(filterTest, onProgress) {
                 builder = new TreeBuilder({
                     getPath: getSourcePath,
                     filterTest,
-                    sep: _PATH_SEP
+                    sep: _PATH_SEP,
                 });
                 postToUi();
             }

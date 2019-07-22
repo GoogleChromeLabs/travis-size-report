@@ -4,7 +4,8 @@
 
 importScripts('./shared.js');
 
-import { TravisFetcher } from './travis';
+import { TravisFetcher, FileData } from './travis';
+import { state } from './state';
 
 /**
  * @fileoverview
@@ -23,8 +24,10 @@ export interface Meta {
 export interface SymbolEntry {
   /** Name of the symbol. */
   n: string;
-  /** Byte size of the symbol, divided by num_aliases. */
+  /** Byte size of the symbol. */
   b: number;
+  /** Gzip byte size of the symbol. */
+  g: number;
   /** Single character string to indicate the symbol type. */
   t: string;
   /**
@@ -32,10 +35,6 @@ export interface SymbolEntry {
    * represents. Negative value when removed in a diff.
    */
   u?: number;
-  /** Bit flags, defaults to 0. */
-  f?: number;
-  /** Number of aliases */
-  a?: number;
 }
 
 export interface FileEntry {
@@ -89,7 +88,15 @@ function _compareFunc(a: TreeNode, b: TreeNode) {
 function createNode(
   options: Pick<TreeNode, 'idPath' | 'type' | 'shortNameIndex'> & Partial<TreeNode>,
 ): TreeNode {
-  const { idPath, srcPath, type, shortNameIndex, size = 0, childStats = {} } = options;
+  const {
+    idPath,
+    srcPath,
+    type,
+    shortNameIndex,
+    size = 0,
+    gzipSize = 0,
+    childStats = {},
+  } = options;
   return {
     children: [],
     parent: null,
@@ -98,6 +105,7 @@ function createNode(
     type,
     shortNameIndex,
     size,
+    gzipSize,
     childStats,
   };
 }
@@ -183,11 +191,12 @@ class TreeBuilder {
       for (const [type, stat] of additionalStats) {
         let parentStat = parent.childStats[type];
         if (parentStat == null) {
-          parentStat = { size: 0, count: 0 };
+          parentStat = { size: 0, gzipSize: 0, count: 0 };
           parent.childStats[type] = parentStat;
         }
 
         parentStat.size += stat.size;
+        parentStat.gzipSize += stat.gzipSize;
         parentStat.count += stat.count;
 
         const absSize = Math.abs(parentStat.size);
@@ -383,8 +392,9 @@ class TreeBuilder {
     // build child nodes for this file's symbols and attach to self
     for (const symbol of fileEntry[_KEYS.FILE_SYMBOLS]) {
       const size = symbol[_KEYS.SIZE];
+      const gzipSize = symbol[_KEYS.GZIP_SIZE];
+      const count = _KEYS.COUNT in symbol ? symbol[_KEYS.COUNT]! : defaultCount;
       const type = symbol[_KEYS.TYPE];
-      const count = (_KEYS.COUNT in symbol ? symbol[_KEYS.COUNT] : defaultCount) as number;
 
       const symbolNode = createNode({
         // Join file path to symbol name with a ":"
@@ -396,6 +406,7 @@ class TreeBuilder {
         childStats: {
           [type]: {
             size,
+            gzipSize,
             count,
           },
         },

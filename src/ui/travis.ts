@@ -1,5 +1,6 @@
 import { BuildChanges, getBuildInfo, getChanges } from '../cli/compare-travis';
 import { FileEntry, Meta } from './tree-worker';
+export { FileData } from '../cli/compare-travis';
 
 function basename(path: string) {
   return path.substring(path.lastIndexOf('/') + 1);
@@ -21,13 +22,8 @@ function transformChanges(changes: BuildChanges): { meta: Meta; entries: FileEnt
         {
           n: basename(data.path),
           b: data.size,
+          g: data.gzipSize,
           t: _CODE_SYMBOL_TYPE,
-          u: 1,
-        },
-        {
-          n: basename(data.path) + '.gz',
-          b: data.gzipSize,
-          t: _OTHER_SYMBOL_TYPE,
           u: 1,
         },
       ],
@@ -40,13 +36,8 @@ function transformChanges(changes: BuildChanges): { meta: Meta; entries: FileEnt
         {
           n: basename(data.path),
           b: -data.size,
+          g: -data.gzipSize,
           t: _CODE_SYMBOL_TYPE,
-          u: -1,
-        },
-        {
-          n: basename(data.path) + '.gz',
-          b: -data.gzipSize,
-          t: _OTHER_SYMBOL_TYPE,
           u: -1,
         },
       ],
@@ -59,13 +50,8 @@ function transformChanges(changes: BuildChanges): { meta: Meta; entries: FileEnt
         {
           n: basename(data.path),
           b: 0,
+          g: 0,
           t: _CODE_SYMBOL_TYPE,
-          u: 1,
-        },
-        {
-          n: basename(data.path) + '.gz',
-          b: 0,
-          t: _OTHER_SYMBOL_TYPE,
           u: 1,
         },
       ],
@@ -78,13 +64,8 @@ function transformChanges(changes: BuildChanges): { meta: Meta; entries: FileEnt
         {
           n: basename(newData.path),
           b: newData.size - oldData.size,
+          g: newData.gzipSize - oldData.gzipSize,
           t: _CODE_SYMBOL_TYPE,
-          u: 1,
-        },
-        {
-          n: basename(newData.path) + '.gz',
-          b: newData.gzipSize - oldData.gzipSize,
-          t: _OTHER_SYMBOL_TYPE,
           u: 1,
         },
       ],

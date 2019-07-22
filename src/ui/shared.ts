@@ -35,6 +35,8 @@ interface TreeNode {
   shortNameIndex: number;
   /** Byte size of this node and its children. */
   size: number;
+  /** gzip byte size of this node and its children. */
+  gzipSize: number;
   /**
    * Type of this node. If this node has children, the string
    * may have a second character to denote the most common child.
@@ -55,7 +57,9 @@ interface TreeNode {
 interface TreeNodeChildStats {
   /** Byte size */
   size: number;
-  /** Number of dex methods */
+  /** gzip byte size */
+  gzipSize: number;
+  /** Amount that this symbol type appears. */
   count: number;
 }
 
@@ -98,6 +102,7 @@ const _KEYS = Object.freeze({
   SOURCE_PATH: 'p' as const,
   FILE_SYMBOLS: 's' as const,
   SIZE: 'b' as const,
+  GZIP_SIZE: 'g' as const,
   COUNT: 'u' as const,
   FLAGS: 'f' as const,
   SYMBOL_NAME: 'n' as const,

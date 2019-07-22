@@ -8,8 +8,8 @@
   },
   "scripts": {
     "clean": "rm -rf build && rm -rf assets/build",
-    "build": "npm run clean && rollup -c",
-    "watch": "npm run clean && tsc --watch"
+    "build": "rollup -c",
+    "watch": "tsc --watch"
   },
   "husky": {
     "hooks": {
