@@ -1,7 +1,7 @@
 {
   "extends": "../tsproject.json",
   "compilerOptions": {
-    "outDir": "../../assets/build",
+    "outDir": "../../docs/build",
     "module": "esnext",
     "lib": ["esnext", "dom", "dom.iterable", "webworker"],
     "skipLibCheck": true,

@@ -3,7 +3,6 @@
     "composite": true,
     "strict": true,
     "target": "esnext",
-    "outDir": "../../assets/build",
     "declaration": true,
     "module": "esnext",
     "esModuleInterop": true,

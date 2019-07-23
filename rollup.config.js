@@ -23,7 +23,7 @@ const uiTypeScriptPluginOptions = { tsconfig: 'src/ui/tsconfig.json' };
 const sharedUiScriptConfig = {
   input: 'src/ui/shared.ts',
   output: {
-    file: 'assets/build/shared.js',
+    file: 'docs/build/shared.js',
     format: 'esm',
     sourcemap: true,
   },
@@ -34,7 +34,7 @@ const sharedUiScriptConfig = {
 const uiConfig = {
   input: 'src/ui/tree-ui.ts',
   output: {
-    dir: 'assets/build',
+    dir: 'docs/build',
     chunkFileNames: '[name].js',
     format: 'esm',
     sourcemap: true,
@@ -47,7 +47,7 @@ const uiConfig = {
 const uiWorkerConfig = {
   input: 'src/ui/tree-worker.ts',
   output: {
-    file: 'assets/build/tree-worker.js',
+    file: 'docs/build/tree-worker.js',
     format: 'esm',
     sourcemap: true,
   },
