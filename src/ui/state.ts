@@ -79,7 +79,7 @@ function _initState() {
       const copy = new URLSearchParams(_filterParams);
 
       const queryString = copy.toString();
-      return queryString.length > 0 ? `?${queryString}` : '';
+      return `?${queryString}`;
     },
     /**
      * Saves a key and value into a temporary state not displayed in the URL.
@@ -145,6 +145,7 @@ function _initState() {
   function _updateStateFromForm() {
     const modifiedForm = new FormData(form);
     _filterParams = new URLSearchParams(Array.from(onlyChangedEntries(modifiedForm)));
+    console.log(Array.from(modifiedForm), Array.from(_filterParams));
     history.replaceState(null, null as any, state.toString());
   }
 

@@ -4,7 +4,9 @@
     "outDir": "../../assets/build",
     "module": "esnext",
     "lib": ["esnext", "dom", "dom.iterable", "webworker"],
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "composite": false,
+    "declaration": false
   },
   "references": [{ "path": "../cli" }]
 }

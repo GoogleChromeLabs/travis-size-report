@@ -17,17 +17,7 @@ const nodeConfig = {
   plugins: [typescript({ tsconfig: 'src/cli/tsconfig.json' }), resolve()],
 };
 
-const uiTypeScriptPluginOptions = {
-  tsconfig: 'src/ui/tsconfig.json',
-  tsconfigOverride: {
-    compilerOptions: {
-      // We want composite mode for typechecking,
-      // but when building the UI we don't want declarations to be outputted.
-      composite: false,
-      declaration: false,
-    },
-  },
-};
+const uiTypeScriptPluginOptions = { tsconfig: 'src/ui/tsconfig.json' };
 
 /** @type {import('rollup').RollupOptions} */
 const sharedUiScriptConfig = {

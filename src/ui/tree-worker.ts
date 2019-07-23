@@ -5,7 +5,6 @@
 importScripts('./shared.js');
 
 import { TravisFetcher, FileData } from './travis';
-import { state } from './state';
 
 /**
  * @fileoverview

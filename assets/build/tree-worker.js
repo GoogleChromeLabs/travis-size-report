@@ -186,7 +186,30 @@ function toSymbol(data) {
         u: 1,
     };
 }
-const extensionsToMerge = ['.gz', '.map', '.d.ts'];
+const extensionsToReplace = new Map([
+    ['.gz', ''],
+    ['.map', ''],
+    ['.d.ts', '.js']
+]);
+function addSymbol(entries, filePath, symbol) {
+    let path = filePath;
+    for (const [extension, replacement] of extensionsToReplace) {
+        const index = path.lastIndexOf(extension);
+        if (index > -1) {
+            path = path.substring(0, index) + replacement;
+        }
+    }
+    if (entries.has(path)) {
+        const entry = entries.get(path);
+        entry[_KEYS.FILE_SYMBOLS].push(symbol);
+    }
+    else {
+        entries.set(path, {
+            p: path,
+            s: [symbol],
+        });
+    }
+}
 function transformChanges(changes) {
     const total = changes.newItems.length +
         changes.deletedItems.length +
@@ -194,32 +217,11 @@ function transformChanges(changes) {
         changes.changedItems.size;
     const meta = { total, diff_mode: true };
     const entries = new Map();
-    function addSymbol(symbol) {
-        const path = extensionsToMerge.reduce((path, extension) => {
-            const index = path.lastIndexOf(extension);
-            if (index > -1) {
-                return path.substring(0, index);
-            }
-            else {
-                return path;
-            }
-        }, symbol[_KEYS.SYMBOL_NAME]);
-        if (entries.has(path)) {
-            const entry = entries.get(path);
-            entry[_KEYS.FILE_SYMBOLS].push(symbol);
-        }
-        else {
-            entries.set(path, {
-                p: path,
-                s: [symbol],
-            });
-        }
-    }
     for (const data of changes.newItems) {
-        addSymbol(toSymbol(data));
+        addSymbol(entries, data.path, toSymbol(data));
     }
     for (const data of changes.deletedItems) {
-        addSymbol({
+        addSymbol(entries, data.path, {
             ...toSymbol(data),
             b: -data.size,
             g: -data.gzipSize,
@@ -227,20 +229,27 @@ function transformChanges(changes) {
         });
     }
     for (const data of changes.sameItems) {
-        addSymbol({
+        addSymbol(entries, data.path, {
             ...toSymbol(data),
             b: 0,
             g: 0,
         });
     }
     for (const [oldData, newData] of changes.changedItems) {
-        addSymbol({
+        addSymbol(entries, newData.path, {
             ...toSymbol(newData),
             b: newData.size - oldData.size,
             g: newData.gzipSize - oldData.gzipSize,
         });
     }
     return { meta, entries: entries.values() };
+}
+function transformBuildInfo(buildInfo) {
+    const entries = new Map();
+    for (const data of buildInfo) {
+        addSymbol(entries, data.path, toSymbol(data));
+    }
+    return { meta: { total: buildInfo.length, diff_mode: false }, entries: entries.values() };
 }
 class TravisFetcher {
     constructor() {
@@ -261,15 +270,26 @@ class TravisFetcher {
     }
     async *newlineDelimtedJsonStream() {
         const [user, repo] = this.repo.split('/');
-        const [currentBuildInfo, previousBuildInfo] = await getBuildInfo(user, repo, this.branch, 2);
-        if (!previousBuildInfo) {
-            throw new Error(`Couldn't find previous build info`);
+        let transformed;
+        if (this.diffMode) {
+            const [currentBuildInfo, previousBuildInfo] = await getBuildInfo(user, repo, this.branch, 2);
+            if (!previousBuildInfo) {
+                throw new Error(`Couldn't find previous build info`);
+            }
+            else if (!currentBuildInfo) {
+                throw new Error(`Couldn't find current build info`);
+            }
+            const buildChanges = await getChanges(previousBuildInfo, currentBuildInfo, this.findRenamed);
+            transformed = transformChanges(buildChanges);
         }
-        else if (!currentBuildInfo) {
-            throw new Error(`Couldn't find current build info`);
+        else {
+            const [currentBuildInfo] = await getBuildInfo(user, repo, this.branch, 1);
+            if (!currentBuildInfo) {
+                throw new Error(`Couldn't find current build info`);
+            }
+            transformed = transformBuildInfo(currentBuildInfo);
         }
-        const buildChanges = await getChanges(previousBuildInfo, currentBuildInfo, this.findRenamed);
-        const { meta, entries } = transformChanges(buildChanges);
+        const { meta, entries } = transformed;
         yield meta;
         yield* entries;
     }
