@@ -1,7 +1,5 @@
 import { FindRenamed } from './find-renamed';
 export interface SizeReportOptions {
-    /** Branch to compare to. Defaults to 'master' */
-    branch?: string;
     /**
      * Join together a missing file and a new file which should be considered the same (as in,
      * renamed).
@@ -13,4 +11,4 @@ export interface SizeReportOptions {
      */
     findRenamed?: string | FindRenamed;
 }
-export default function sizeReport(user: string, repo: string, files: string | readonly string[], { branch, findRenamed }?: SizeReportOptions): Promise<void>;
+export default function sizeReport(user: string, repo: string, files: string | readonly string[], cdnUrl: string, { findRenamed }?: SizeReportOptions): Promise<void>;

@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Configuration file for travis-size-report.
  * This is typically `sizereport.config.js`.
@@ -16,16 +15,12 @@ export interface Config {
      * path: 'dist/*'
      */
     path: string | readonly string[];
-    /**
-     * The branch to check against.
-     * @default 'master'
-     * @example
-     * branch: 'develop'
-     */
-    branch?: string;
+    buildSizePath: string;
+    cdnUrl: string;
     /**
      * By default, a renamed file will look like one file deleted and another created.
      * By writing a findRenamed callback, you can tell travis-size-report that a file was renamed.
      */
     findRenamed?: string | import('./find-renamed').FindRenamed;
 }
+export declare function getConfig(): Config;

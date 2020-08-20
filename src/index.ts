@@ -1,69 +1,22 @@
-import { promisify } from 'util';
-import { stat } from 'fs';
-import { URL, URLSearchParams } from 'url';
-
-import glob from 'glob';
-import gzipSize from 'gzip-size';
-import escapeRE from 'escape-string-regexp';
-import fetch, { Response } from 'node-fetch';
+import fetch from 'node-fetch';
 import prettyBytes from 'pretty-bytes';
 import { buildFindRenamedFunc, FindRenamed } from './find-renamed';
+import { getBuildInfo, FileData } from './utils';
 
-const { TRAVIS_TOKEN, GITHUB_TOKEN, TRAVIS_PULL_REQUEST } = process.env;
+const { GITHUB_TOKEN, PR_NUMBER } = process.env;
 
 const hiddenDataMarker = 'botsData';
 
 console.log('size-report tokens', {
-  TRAVIS_TOKEN,
   GITHUB_TOKEN,
-  TRAVIS_PULL_REQUEST,
+  PR_NUMBER,
 });
-
-const globP = promisify(glob);
-const statP = promisify(stat);
 
 let ghMdOutput = '';
 let ghMdCollapsedOutput = '';
 
-interface FileData {
-  name: string;
-  path: string;
-  size: number;
-  gzipSize: number;
-}
-
-const buildSizePrefix = '=== BUILD SIZES: ';
-const buildSizePrefixRe = new RegExp(`^${escapeRE(buildSizePrefix)}(.+)$`, 'm');
-
 const ascendingSizeSort = (a: any, b: any) => a.bytesDiff - b.bytesDiff;
 const descendingSizeSort = (a: any, b: any) => b.bytesDiff - a.bytesDiff;
-
-function escapeTilde(str: string) {
-  return str.replace(/\~/g, '\\~');
-}
-
-/**
- * Recursively-read a directory and turn it into an array of FileDatas
- */
-function pathsToInfoArray(paths: string[]): Promise<FileData[]> {
-  return Promise.all(
-    paths.map(async path => {
-      const lastSlashIndex = path.lastIndexOf('/');
-      const lastHiphenIndex = path.lastIndexOf('-');
-
-      const name = escapeTilde(path.substring(lastSlashIndex + 1, lastHiphenIndex));
-      const gzipSizePromise = gzipSize.file(path);
-      const statSizePromise = statP(path).then(s => s.size);
-
-      return {
-        name,
-        path,
-        size: await statSizePromise,
-        gzipSize: await gzipSizePromise,
-      };
-    }),
-  );
-}
 
 function getHiddenData(str: string) {
   const markerIndex = str.indexOf(hiddenDataMarker);
@@ -154,49 +107,14 @@ function deleteCommentGitHub(params: any = {}) {
   });
 }
 
-function fetchTravis(
-  path: string,
-  searchParams: { [propName: string]: string } = {},
-): Promise<Response> {
-  const url = new URL(path, 'https://api.travis-ci.com');
-  url.search = new URLSearchParams(searchParams).toString();
-
-  return fetch(url.href, {
-    headers: {
-      'Travis-API-Version': '3',
-      Authorization: `token ${TRAVIS_TOKEN}`,
-    },
-  });
-}
-
-function fetchTravisBuildInfo(user: string, repo: string, branch: string) {
-  return fetchTravis(`/repo/${encodeURIComponent(`${user}/${repo}`)}/builds`, {
-    'branch.name': branch,
-    state: 'passed',
-    limit: '1',
-    event_type: 'push',
-  }).then(r => r.json());
-}
-
-function fetchTravisText(path: string): Promise<string> {
-  return fetchTravis(path).then(r => r.text());
-}
-
 /**
- * Scrape Travis for the previous build info.
+ * Get previous build info from HackerRank CDN.
  */
-async function getPreviousBuildInfo(
-  user: string,
-  repo: string,
-  branch: string,
-): Promise<FileData[] | undefined> {
-  const buildData = await fetchTravisBuildInfo(user, repo, branch);
-  const jobUrl = buildData.builds[0].jobs[0]['@href'];
-  const log = await fetchTravisText(jobUrl + '/log.txt');
-  const reResult = buildSizePrefixRe.exec(log);
 
-  if (!reResult) return;
-  return JSON.parse(reResult[1]);
+async function fetchPreviousBuildInfo(cdnUrl: string): Promise<FileData[] | undefined> {
+  const r = await fetch(`${cdnUrl}/buildsize.json`);
+  const json = r.json();
+  return json;
 }
 
 interface BuildChanges {
@@ -370,8 +288,6 @@ function outputChanges(changes: BuildChanges) {
 }
 
 export interface SizeReportOptions {
-  /** Branch to compare to. Defaults to 'master' */
-  branch?: string;
   /**
    * Join together a missing file and a new file which should be considered the same (as in,
    * renamed).
@@ -388,33 +304,22 @@ export default async function sizeReport(
   user: string,
   repo: string,
   files: string | readonly string[],
-  { branch = 'master', findRenamed }: SizeReportOptions = {},
+  cdnUrl: string,
+  { findRenamed }: SizeReportOptions = {},
 ): Promise<void> {
-  if (typeof files === 'string') files = [files];
   if (typeof findRenamed === 'string') findRenamed = buildFindRenamedFunc(findRenamed);
 
-  // Get target files
-  const filePaths = [];
-
-  for (const glob of files) {
-    const matches = await globP(glob, { nodir: true });
-    filePaths.push(...matches);
-  }
-
-  const pr = TRAVIS_PULL_REQUEST;
-
-  const uniqueFilePaths = [...new Set(filePaths)];
-
-  // Output the current build sizes for later retrieval.
-  const buildInfo = await pathsToInfoArray(uniqueFilePaths);
-  console.log(buildSizePrefix + JSON.stringify(buildInfo));
+  const pr = PR_NUMBER;
+  const buildInfo = await getBuildInfo(files);
+  console.log('=== Build Size ===');
+  console.log(buildInfo);
 
   console.log('\nBuild change report sending to GitHub PR as comment:');
 
   let previousBuildInfo;
 
   try {
-    previousBuildInfo = await getPreviousBuildInfo(user, repo, branch);
+    previousBuildInfo = await fetchPreviousBuildInfo(cdnUrl);
   } catch (err) {
     console.log(`  Couldn't parse previous build info`);
     return;
@@ -427,14 +332,17 @@ export default async function sizeReport(
 
   const buildChanges = await getChanges(previousBuildInfo, buildInfo, findRenamed);
   outputChanges(buildChanges);
+  ghMdOutput += `\n<details><summary>Minor Changes</summary>\n${ghMdCollapsedOutput}\n</details>`;
+
+  console.log('=== Changes ===');
+  console.log(ghMdOutput);
+
   const issueRes = await getGitHubIssue({ user, repo, pr });
   const issueData = await issueRes.json();
   const issueBody = issueData.body;
 
   const hiddenData = getHiddenData(issueBody);
   const { lastCommentId } = hiddenData.sizeReport;
-
-  ghMdOutput += `\n<details><summary>Minor Changes</summary>\n${ghMdCollapsedOutput}\n</details>`;
 
   const commentRes = await commentGitHub({ user, repo, pr }, ghMdOutput);
   const commentData = await commentRes.json();
