@@ -1,4 +1,4 @@
 module.exports = {
-  repo: 'GoogleChromeLabs/travis-size-report',
+  repo: 'interviewstreet/travis-size-report',
   path: 'build/**/*',
 };
