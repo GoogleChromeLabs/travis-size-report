@@ -3,51 +3,20 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const util_1 = require("util");
-const fs_1 = require("fs");
-const url_1 = require("url");
-const glob_1 = __importDefault(require("glob"));
-const gzip_size_1 = __importDefault(require("gzip-size"));
-const escape_string_regexp_1 = __importDefault(require("escape-string-regexp"));
 const node_fetch_1 = __importDefault(require("node-fetch"));
 const pretty_bytes_1 = __importDefault(require("pretty-bytes"));
 const find_renamed_1 = require("./find-renamed");
-const { TRAVIS_TOKEN, GITHUB_TOKEN, TRAVIS_PULL_REQUEST } = process.env;
+const utils_1 = require("./utils");
+const { GITHUB_TOKEN, PR_NUMBER } = process.env;
 const hiddenDataMarker = 'botsData';
 console.log('size-report tokens', {
-    TRAVIS_TOKEN,
     GITHUB_TOKEN,
-    TRAVIS_PULL_REQUEST,
+    PR_NUMBER,
 });
-const globP = util_1.promisify(glob_1.default);
-const statP = util_1.promisify(fs_1.stat);
 let ghMdOutput = '';
 let ghMdCollapsedOutput = '';
-const buildSizePrefix = '=== BUILD SIZES: ';
-const buildSizePrefixRe = new RegExp(`^${escape_string_regexp_1.default(buildSizePrefix)}(.+)$`, 'm');
 const ascendingSizeSort = (a, b) => a.bytesDiff - b.bytesDiff;
 const descendingSizeSort = (a, b) => b.bytesDiff - a.bytesDiff;
-function escapeTilde(str) {
-    return str.replace(/\~/g, '\\~');
-}
-/**
- * Recursively-read a directory and turn it into an array of FileDatas
- */
-function pathsToInfoArray(paths) {
-    return Promise.all(paths.map(async (path) => {
-        const lastSlashIndex = path.lastIndexOf('/');
-        const lastHiphenIndex = path.lastIndexOf('-');
-        const name = escapeTilde(path.substring(lastSlashIndex + 1, lastHiphenIndex));
-        const gzipSizePromise = gzip_size_1.default.file(path);
-        const statSizePromise = statP(path).then(s => s.size);
-        return {
-            name,
-            path,
-            size: await statSizePromise,
-            gzipSize: await gzipSizePromise,
-        };
-    }));
-}
 function getHiddenData(str) {
     const markerIndex = str.indexOf(hiddenDataMarker);
     if (markerIndex === -1) {
@@ -117,38 +86,13 @@ function deleteCommentGitHub(params = {}) {
         },
     });
 }
-function fetchTravis(path, searchParams = {}) {
-    const url = new url_1.URL(path, 'https://api.travis-ci.com');
-    url.search = new url_1.URLSearchParams(searchParams).toString();
-    return node_fetch_1.default(url.href, {
-        headers: {
-            'Travis-API-Version': '3',
-            Authorization: `token ${TRAVIS_TOKEN}`,
-        },
-    });
-}
-function fetchTravisBuildInfo(user, repo, branch) {
-    return fetchTravis(`/repo/${encodeURIComponent(`${user}/${repo}`)}/builds`, {
-        'branch.name': branch,
-        state: 'passed',
-        limit: '1',
-        event_type: 'push',
-    }).then(r => r.json());
-}
-function fetchTravisText(path) {
-    return fetchTravis(path).then(r => r.text());
-}
 /**
- * Scrape Travis for the previous build info.
+ * Get previous build info from HackerRank CDN.
  */
-async function getPreviousBuildInfo(user, repo, branch) {
-    const buildData = await fetchTravisBuildInfo(user, repo, branch);
-    const jobUrl = buildData.builds[0].jobs[0]['@href'];
-    const log = await fetchTravisText(jobUrl + '/log.txt');
-    const reResult = buildSizePrefixRe.exec(log);
-    if (!reResult)
-        return;
-    return JSON.parse(reResult[1]);
+async function fetchPreviousBuildInfo(cdnUrl) {
+    const r = await node_fetch_1.default(`${cdnUrl}/buildsize.json`);
+    const json = r.json();
+    return json;
 }
 /**
  * Generate an array that represents the difference between builds.
@@ -282,26 +226,17 @@ function outputChanges(changes) {
         collapsedOutput(`| ${sizeDiff} | ${size} | ${changeEmoji} | ${name}`);
     }
 }
-async function sizeReport(user, repo, files, { branch = 'master', findRenamed } = {}) {
-    if (typeof files === 'string')
-        files = [files];
+async function sizeReport(user, repo, files, cdnUrl, { findRenamed } = {}) {
     if (typeof findRenamed === 'string')
         findRenamed = find_renamed_1.buildFindRenamedFunc(findRenamed);
-    // Get target files
-    const filePaths = [];
-    for (const glob of files) {
-        const matches = await globP(glob, { nodir: true });
-        filePaths.push(...matches);
-    }
-    const pr = TRAVIS_PULL_REQUEST;
-    const uniqueFilePaths = [...new Set(filePaths)];
-    // Output the current build sizes for later retrieval.
-    const buildInfo = await pathsToInfoArray(uniqueFilePaths);
-    console.log(buildSizePrefix + JSON.stringify(buildInfo));
+    const pr = PR_NUMBER;
+    const buildInfo = await utils_1.getBuildInfo(files);
+    console.log('=== Build Size ===');
+    console.log(buildInfo);
     console.log('\nBuild change report sending to GitHub PR as comment:');
     let previousBuildInfo;
     try {
-        previousBuildInfo = await getPreviousBuildInfo(user, repo, branch);
+        previousBuildInfo = await fetchPreviousBuildInfo(cdnUrl);
     }
     catch (err) {
         console.log(`  Couldn't parse previous build info`);
@@ -313,12 +248,14 @@ async function sizeReport(user, repo, files, { branch = 'master', findRenamed } 
     }
     const buildChanges = await getChanges(previousBuildInfo, buildInfo, findRenamed);
     outputChanges(buildChanges);
+    ghMdOutput += `\n<details><summary>Minor Changes</summary>\n${ghMdCollapsedOutput}\n</details>`;
+    console.log('=== Changes ===');
+    console.log(ghMdOutput);
     const issueRes = await getGitHubIssue({ user, repo, pr });
     const issueData = await issueRes.json();
     const issueBody = issueData.body;
     const hiddenData = getHiddenData(issueBody);
     const { lastCommentId } = hiddenData.sizeReport;
-    ghMdOutput += `\n<details><summary>Minor Changes</summary>\n${ghMdCollapsedOutput}\n</details>`;
     const commentRes = await commentGitHub({ user, repo, pr }, ghMdOutput);
     const commentData = await commentRes.json();
     const commentId = commentData.id;

@@ -1,13 +1,15 @@
 {
   "name": "travis-size-report",
-  "version": "1.1.0",
+  "version": "1.0.0",
   "description": "Compare files from one build to another",
   "main": "index.js",
   "bin": {
-    "sizereport": "build/bin.js"
+    "sizereport": "build/sizereport.js",
+    "sizecheck": "build/sizecheck.js"
   },
   "scripts": {
-    "size": "node build/bin.js --config",
+    "sizereport": "node build/sizereport.js --config",
+    "sizecheck": "node build/sizecheck.js --config",
     "clean": "rm -rf build",
     "build": "npm run clean && tsc",
     "watch": "npm run clean && tsc --watch"
@@ -19,14 +21,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/GoogleChromeLabs/travis-size-report.git"
+    "url": "git+https://github.com/interviewstreet/travis-size-report.git"
   },
-  "author": "Jake Archibald",
+  "author": "Aditya Agarwal",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/GoogleChromeLabs/travis-size-report/issues"
+    "url": "https://github.com/interviewstreet/travis-size-report/issues"
   },
-  "homepage": "https://github.com/GoogleChromeLabs/travis-size-report#readme",
+  "homepage": "https://github.com/interviewstreet/travis-size-report#readme",
   "dependencies": {
     "escape-string-regexp": "^2.0.0",
     "glob": "^7.1.3",
