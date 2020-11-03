@@ -1,0 +1,26 @@
+name: Deploy to Nexus
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: '10.x'
+      - run: yarn install --frozen-lockfile
+      - run: yarn build
+      - run: yarn deploy
+        env:
+          TRAVIS_PULL_REQUEST: 'true'
+          NEXUS_PUBLISH_TOKEN: ${{ secrets.NEXUS_PUBLISH_TOKEN }}
+          TRAVIS_PULL_REQUEST_BRANCH: 'testing'
+          CI: true
